@@ -1,0 +1,6 @@
+[submodule "packages/chii"]
+	path = packages/chii
+	url = https://github.com/liriliri/chii.git
+[submodule "packages/chrome-devtools-mcp"]
+	path = packages/chrome-devtools-mcp
+	url = https://github.com/ChromeDevTools/chrome-devtools-mcp.git
