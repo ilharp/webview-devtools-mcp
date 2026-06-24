@@ -1,6 +1,9 @@
 {
   "name": "@wdmcp/workspace",
   "packageManager": "yarn@4.17.0",
+  "workspaces": [
+    "packages/*"
+  ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tsconfig/strictest": "^2.0.8",
