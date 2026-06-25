@@ -4,34 +4,101 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/wdmcp.ts |   21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ src/wdmcp.ts |   88 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 88 insertions(+)
  create mode 100644 src/wdmcp.ts
 
 diff --git a/src/wdmcp.ts b/src/wdmcp.ts
 new file mode 100644
-index 0000000..a8a2b5d
+index 0000000..55e3c57
 --- /dev/null
 +++ b/src/wdmcp.ts
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,88 @@
 +/* eslint-disable @local/check-license */
 +
++import {start} from 'chii';
++import Emitter from 'licia/Emitter';
 +import type {ConnectionTransport} from 'puppeteer';
++import type {WebSocket} from 'ws';
++
++type ChiiCtx = Awaited<ReturnType<typeof start>>;
++
++const CHII_CLIENT_PREFIX = 'wdmcp_client_';
 +
 +export class WebviewDevtoolsMcpTransport implements ConnectionTransport {
++  constructor(private chiiCtx: ChiiCtx) {
++    chiiCtx.wss.channelManager.on('target_changed', () => {
++      const targets = chiiCtx.wss.channelManager.getTargets();
++
++      const [id] = Object.keys(targets).reverse();
++
++      if (id) {
++        this.target = targets[id];
++
++        this.clientId = `${CHII_CLIENT_PREFIX}${id}`;
++
++        chiiCtx.wss.channelManager.createClient(
++          CHII_CLIENT_ID,
++          this.emitter,
++          this.target,
++        );
++      } else {
++        this.target = undefined;
++      }
++    });
++  }
++
++  map: Record<
++    string,
++    {
++      emitter: Emitter;
++
++      clientId: string;
++
++      target: {
++        id: string;
++        title: string;
++        url: string;
++        favicon: string;
++        channel: string;
++        ws: WebSocket;
++        ip: string;
++        userAgent: string;
++        rtc: any;
++      };
++    }
++  > = {};
++
 +  static create = async () => {
-+    return new WebviewDevtoolsMcpTransport();
++    const chiiCtx = await start({
++      port: 9333,
++    });
++
++    return new WebviewDevtoolsMcpTransport(chiiCtx);
 +  };
 +
++  /**
++   * Call this method using optional chaining when received a message from chii client.
++   */
++  onmessage?: ((message: string) => void) | undefined;
++
++  onclose?: (() => void) | undefined;
++
++  /**
++   * Send a message to chii client.
++   */
 +  send = (message: string): void => {
 +    throw new Error('Method not implemented.');
 +  };
 +
 +  close = (): void => {
-+    throw new Error('Method not implemented.');
++    // TODO: dispose chii server
++    // This should close the connection to one single chii client,
++    // but since the entire chii server is created within this class,
++    // we just close the chii server directly
 +  };
 +
-+  onmessage = (message: string): void => {};
-+
-+  onclose = (): void => {};
++  closePuppeteer = () => {
++    this.onclose?.();
++  };
 +}

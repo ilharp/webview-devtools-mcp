@@ -1,0 +1,5 @@
+# This series applies on Git commit 638c1182a756204dce6fcda3c0dee22b9adefdf5
+0001-update-gitignore.patch
+0002-emit-server-dts.patch
+0003-add-types-field.patch
+0100-expose-wss.patch

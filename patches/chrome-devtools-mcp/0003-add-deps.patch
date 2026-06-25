@@ -1,0 +1,21 @@
+chore: add deps
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ package.json |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/package.json b/package.json
+index c7c6dc5..d66ba56 100644
+--- a/package.json
++++ b/package.json
+@@ -64,6 +64,7 @@
+     "@types/yargs": "^17.0.33",
+     "@typescript-eslint/eslint-plugin": "^8.43.0",
+     "@typescript-eslint/parser": "^8.43.0",
++    "chii": "workspace:^",
+     "chrome-devtools-frontend": "1.0.1650035",
+     "core-js": "3.49.0",
+     "debug": "4.4.3",

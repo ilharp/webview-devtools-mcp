@@ -1,0 +1,23 @@
+chore: update .gitignore
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ .gitignore |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/.gitignore b/.gitignore
+index 1e94bed..89fe53b 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -6,4 +6,7 @@ devtools/devtools-frontend
+ devtools/.gclient_entries
+ devtools/.gclient_previous_sync_commits
+ script/lib/__pycache__
+-package-lock.json
+\ No newline at end of file
++package-lock.json
++
++server_dist/
++*.tsbuildinfo

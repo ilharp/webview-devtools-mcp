@@ -1,0 +1,21 @@
+chore: add types field in package.json
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ package.json |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/package.json b/package.json
+index ebb4d47..16de69b 100644
+--- a/package.json
++++ b/package.json
+@@ -6,6 +6,7 @@
+   "bin": {
+     "chii": "./bin/chii.js"
+   },
++  "types": "server_dist/index.d.ts",
+   "files": [
+     "bin",
+     "public",

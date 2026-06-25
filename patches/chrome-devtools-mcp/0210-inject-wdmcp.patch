@@ -1,0 +1,30 @@
+feat: inject wdmcp transport
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ src/browser.ts |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/browser.ts b/src/browser.ts
+index 6b077ad..95591f6 100644
+--- a/src/browser.ts
++++ b/src/browser.ts
+@@ -17,6 +17,7 @@ import type {
+   Target,
+ } from './third_party/index.js';
+ import {puppeteer} from './third_party/index.js';
++import {WebviewDevtoolsMcpTransport} from './wdmcp.js';
+ 
+ let browser: Browser | undefined;
+ let browserMode: 'launched' | 'connected' | undefined;
+@@ -123,6 +124,8 @@ export async function ensureBrowserConnected(options: {
+     );
+   }
+ 
++  connectOptions.transport = await WebviewDevtoolsMcpTransport.create();
++
+   logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions));
+   try {
+     // Assign mode before browser so a concurrent closeBrowser() never sees

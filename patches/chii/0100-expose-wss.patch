@@ -1,0 +1,24 @@
+feat: expose wss
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ server/index.js |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/server/index.js b/server/index.js
+index 38a70b4..9d3c0cc 100644
+--- a/server/index.js
++++ b/server/index.js
+@@ -52,6 +52,10 @@ async function start({
+       wss.start(server);
+     }
+   }
++
++  return {
++    wss,
++  };
+ }
+ 
+ module.exports = {
