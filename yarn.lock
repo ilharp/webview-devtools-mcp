@@ -3215,7 +3215,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chii@workspace:packages/chii":
+"chii@workspace:^, chii@workspace:packages/chii":
   version: 0.0.0-use.local
   resolution: "chii@workspace:packages/chii"
   dependencies:
@@ -3327,6 +3327,7 @@ __metadata:
     "@types/yargs": "npm:^17.0.33"
     "@typescript-eslint/eslint-plugin": "npm:^8.43.0"
     "@typescript-eslint/parser": "npm:^8.43.0"
+    chii: "workspace:^"
     chrome-devtools-frontend: "npm:1.0.1650035"
     core-js: "npm:3.49.0"
     debug: "npm:4.4.3"
