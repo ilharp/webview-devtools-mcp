@@ -1,0 +1,22 @@
+feat: enable `autoConnect`
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ src/bin/chrome-devtools-mcp-cli-options.ts |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bin/chrome-devtools-mcp-cli-options.ts b/src/bin/chrome-devtools-mcp-cli-options.ts
+index 4bcd437..141bd65 100644
+--- a/src/bin/chrome-devtools-mcp-cli-options.ts
++++ b/src/bin/chrome-devtools-mcp-cli-options.ts
+@@ -13,7 +13,7 @@ export const cliOptions = {
+     description:
+       'If specified, automatically connects to a browser (Chrome 144+) running locally from the user data directory identified by the channel param (default channel is stable). Requires the remote debugging server to be started in the Chrome instance via chrome://inspect/#remote-debugging.',
+     conflicts: ['isolated', 'executablePath'],
+-    default: false,
++    default: true,
+     coerce: (value: boolean | undefined) => {
+       if (!value) {
+         return;

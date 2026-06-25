@@ -1,2 +1,6 @@
-# This series applies on Git commit 0aaa8e3cc0e9ae55b1ef5b456d6d25526015b886
+# This series applies on Git commit 6a9466378c13b6ccba91b54091ea83a5ca37a8db
 0001-add-install-config.patch
+0002-enable-declaration.patch
+0100-enable-autoconnect.patch
+0200-add-wdmcp.patch
+0210-inject-wdmcp-transport.patch

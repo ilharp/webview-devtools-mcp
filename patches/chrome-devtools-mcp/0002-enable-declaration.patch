@@ -1,0 +1,21 @@
+chore: enable `declaration`
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ tsconfig.json |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tsconfig.json b/tsconfig.json
+index d1dd1a1..32ddfae 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -19,6 +19,7 @@
+     "noImplicitOverride": true,
+     "noFallthroughCasesInSwitch": true,
+     "incremental": true,
++    "declaration": true,
+     "sourceMap": true,
+     "allowJs": true,
+     "useUnknownInCatchVariables": false
