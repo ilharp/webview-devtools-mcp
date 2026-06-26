@@ -4,68 +4,143 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/wdmcp.ts |   88 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 88 insertions(+)
+ src/third_party/index.ts |    5 +
+ src/wdmcp.ts             |  156 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 161 insertions(+)
  create mode 100644 src/wdmcp.ts
 
+diff --git a/src/third_party/index.ts b/src/third_party/index.ts
+index 222f149..5c81ea4 100644
+--- a/src/third_party/index.ts
++++ b/src/third_party/index.ts
+@@ -83,3 +83,8 @@ export const generateReport = generateReportImpl as (
+ ) => string;
+ 
+ export * as DevTools from '../../node_modules/chrome-devtools-frontend/mcp/mcp.js';
++
++export * as chii from 'chii';
++export * as licia from 'licia';
++import LiciaEmitter from 'licia/Emitter.js';
++export {LiciaEmitter};
 diff --git a/src/wdmcp.ts b/src/wdmcp.ts
 new file mode 100644
-index 0000000..55e3c57
+index 0000000..3da510e
 --- /dev/null
 +++ b/src/wdmcp.ts
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,156 @@
 +/* eslint-disable @local/check-license */
 +
-+import {start} from 'chii';
-+import Emitter from 'licia/Emitter';
 +import type {ConnectionTransport} from 'puppeteer';
 +import type {WebSocket} from 'ws';
++
++import {chii, LiciaEmitter as Emitter} from './third_party/index.js';
++
++const {start} = chii;
 +
 +type ChiiCtx = Awaited<ReturnType<typeof start>>;
 +
 +const CHII_CLIENT_PREFIX = 'wdmcp_client_';
 +
++interface ChiiTarget {
++  id: string;
++  title: string;
++  url: string;
++  favicon: string;
++  channel: string;
++  ws: WebSocket;
++  ip: string;
++  userAgent: string;
++  rtc: unknown;
++}
++
++/**
++ * A virtual websocket bridging this transport and a single chii client.
++ *
++ * chii drives it just like a real `ws`: it subscribes to `message`/`close`
++ * and calls `send` to deliver messages coming back from the target.
++ */
++interface ChiiClientWs extends Emitter {
++  /** Called by chii with messages coming from the target. */
++  send(message: string): void;
++
++  /** Tears down the underlying chii client channel. */
++  close(): void;
++}
++
 +export class WebviewDevtoolsMcpTransport implements ConnectionTransport {
 +  constructor(private chiiCtx: ChiiCtx) {
 +    chiiCtx.wss.channelManager.on('target_changed', () => {
-+      const targets = chiiCtx.wss.channelManager.getTargets();
++      const targets = chiiCtx.wss.channelManager.getTargets() as Record<
++        string,
++        ChiiTarget
++      >;
 +
++      // Currently use the last (newest) target as the selected target.
 +      const [id] = Object.keys(targets).reverse();
 +
 +      if (id) {
-+        this.target = targets[id];
++        this.selectedTargetId = id;
++      }
 +
-+        this.clientId = `${CHII_CLIENT_PREFIX}${id}`;
++      const targetIds = Object.keys(targets);
 +
-+        chiiCtx.wss.channelManager.createClient(
-+          CHII_CLIENT_ID,
-+          this.emitter,
-+          this.target,
-+        );
-+      } else {
-+        this.target = undefined;
++      // Create a chii client for every target that appeared since last time.
++      for (const targetId of targetIds) {
++        if (this.map[targetId]) {
++          continue;
++        }
++
++        const target = targets[targetId];
++        const clientId = `${CHII_CLIENT_PREFIX}${targetId}`;
++
++        // The virtual websocket chii talks to on behalf of this transport.
++        const emitter = new Emitter() as ChiiClientWs;
++
++        // chii owns this client's lifecycle: when the target ws closes it
++        // calls `close` (via the listener createClient puts on target.ws),
++        // which must emit `close` so chii can destroy the channel and drop
++        // the client. So it is only ever called once, by chii.
++        emitter.close = () => {
++          emitter.emit('close');
++        };
++
++        // chii delivers target messages here. Only the currently selected
++        // target is forwarded up to puppeteer.
++        emitter.send = (message: string) => {
++          if (this.selectedTargetId === targetId) {
++            this.onmessage?.(message);
++          }
++        };
++
++        chiiCtx.wss.channelManager.createClient(clientId, emitter, targetId);
++
++        this.map[targetId] = {emitter, clientId, target};
++      }
++
++      // Drop bookkeeping for targets that have disappeared. chii already
++      // disposed the corresponding client when the target ws closed, so we
++      // only need to forget it here.
++      for (const targetId of Object.keys(this.map)) {
++        if (targets[targetId]) {
++          continue;
++        }
++
++        delete this.map[targetId];
 +      }
 +    });
 +  }
 +
++  selectedTargetId: string | undefined = undefined;
++
 +  map: Record<
++    /** targetId */
 +    string,
 +    {
-+      emitter: Emitter;
++      emitter: ChiiClientWs;
 +
 +      clientId: string;
 +
-+      target: {
-+        id: string;
-+        title: string;
-+        url: string;
-+        favicon: string;
-+        channel: string;
-+        ws: WebSocket;
-+        ip: string;
-+        userAgent: string;
-+        rtc: any;
-+      };
++      target: ChiiTarget;
 +    }
 +  > = {};
 +
@@ -88,7 +163,14 @@ index 0000000..55e3c57
 +   * Send a message to chii client.
 +   */
 +  send = (message: string): void => {
-+    throw new Error('Method not implemented.');
++    const targetId = this.selectedTargetId;
++    if (!targetId) {
++      return;
++    }
++
++    // Hand the message to the selected target's virtual client. Its channel
++    // is connected to the target channel, so chii relays it to the target.
++    this.map[targetId]?.emitter.emit('message', message);
 +  };
 +
 +  close = (): void => {

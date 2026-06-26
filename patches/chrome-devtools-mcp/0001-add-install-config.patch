@@ -4,27 +4,16 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- package.json |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ package.json |    3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/package.json b/package.json
-index 55f28fb..c7c6dc5 100644
+index 08a4c8f..99a2178 100644
 --- a/package.json
 +++ b/package.json
-@@ -4,8 +4,8 @@
-   "description": "MCP server for Chrome DevTools",
-   "type": "module",
-   "bin": {
--    "chrome-devtools-mcp": "./build/src/bin/chrome-devtools-mcp.js",
--    "chrome-devtools": "./build/src/bin/chrome-devtools.js"
-+    "chrome-devtools": "./build/src/bin/chrome-devtools.js",
-+    "chrome-devtools-mcp": "./build/src/bin/chrome-devtools-mcp.js"
-   },
-   "main": "./build/src/index.js",
-   "scripts": {
-@@ -84,6 +84,9 @@
-     "urlpattern-polyfill": "^10.1.0",
-     "yargs": "18.0.0"
+@@ -92,6 +92,9 @@
+       "optional": true
+     }
    },
 +  "installConfig": {
 +    "hoistingLimits": "workspaces"

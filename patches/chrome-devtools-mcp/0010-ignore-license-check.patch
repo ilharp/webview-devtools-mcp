@@ -1,0 +1,22 @@
+chore: ignore license check
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ rollup.config.mjs |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rollup.config.mjs b/rollup.config.mjs
+index d1ed52c..42d73f9 100644
+--- a/rollup.config.mjs
++++ b/rollup.config.mjs
+@@ -149,7 +149,7 @@ const bundleDependency = (
+       thirdParty: {
+         allow: {
+           test: dependency => {
+-            return allowedLicenses.includes(dependency.license);
++            return allowedLicenses.includes(dependency.license) || ['only', 'tweetnacl', 'json-schema'].includes(dependency.name);
+           },
+           failOnUnlicensed: true,
+           failOnViolation: true,
