@@ -4,11 +4,11 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/browser.ts |    3 +++
- 1 file changed, 3 insertions(+)
+ src/browser.ts |   14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/src/browser.ts b/src/browser.ts
-index 6b077ad..95591f6 100644
+index 6b077ad..282d30c 100644
 --- a/src/browser.ts
 +++ b/src/browser.ts
 @@ -17,6 +17,7 @@ import type {
@@ -19,12 +19,27 @@ index 6b077ad..95591f6 100644
  
  let browser: Browser | undefined;
  let browserMode: 'launched' | 'connected' | undefined;
-@@ -123,6 +124,8 @@ export async function ensureBrowserConnected(options: {
+@@ -123,12 +124,21 @@ export async function ensureBrowserConnected(options: {
      );
    }
  
-+  connectOptions.transport = await WebviewDevtoolsMcpTransport.create();
+-  logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions));
++  const connectOptions2: Parameters<typeof puppeteer.connect>[0] = {
++    targetFilter: makeTargetFilter(enableExtensions),
++    defaultViewport: null,
++    handleDevToolsAsPage: true,
++    blocklist: options.blocklist,
++    allowlist: options.allowlist,
++    transport: await WebviewDevtoolsMcpTransport.create(),
++  };
 +
-   logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions));
++  logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions2));
    try {
      // Assign mode before browser so a concurrent closeBrowser() never sees
+     // `browser` set with `browserMode` still undefined (would fall through
+     // to the disconnect() path and orphan a launched Chrome).
+-    const connected = await puppeteer.connect(connectOptions);
++    const connected = await puppeteer.connect(connectOptions2);
+     browserMode = 'connected';
+     browser = connected;
+   } catch (err) {
