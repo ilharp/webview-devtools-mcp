@@ -3357,6 +3357,11 @@ __metadata:
     typescript-eslint: "npm:^8.43.0"
     urlpattern-polyfill: "npm:^10.1.0"
     yargs: "npm:18.0.0"
+  peerDependencies:
+    "@toon-format/toon": ^2.2.0
+  peerDependenciesMeta:
+    "@toon-format/toon":
+      optional: true
   bin:
     chrome-devtools: ./build/src/bin/chrome-devtools.js
     chrome-devtools-mcp: ./build/src/bin/chrome-devtools-mcp.js
