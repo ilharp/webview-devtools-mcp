@@ -5,8 +5,8 @@ From: Il Harper <hi@ilharper.com>
 
 ---
  src/third_party/index.ts |    5 +
- src/wdmcp.ts             |  156 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 161 insertions(+)
+ src/wdmcp.ts             |  187 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 192 insertions(+)
  create mode 100644 src/wdmcp.ts
 
 diff --git a/src/third_party/index.ts b/src/third_party/index.ts
@@ -24,10 +24,10 @@ index 222f149..5c81ea4 100644
 +export {LiciaEmitter};
 diff --git a/src/wdmcp.ts b/src/wdmcp.ts
 new file mode 100644
-index 0000000..3da510e
+index 0000000..a8e5d1f
 --- /dev/null
 +++ b/src/wdmcp.ts
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,187 @@
 +/* eslint-disable @local/check-license */
 +
 +import type {ConnectionTransport} from 'puppeteer';
@@ -68,6 +68,46 @@ index 0000000..3da510e
 +}
 +
 +export class WebviewDevtoolsMcpTransport implements ConnectionTransport {
++  constructor(
++    /**
++     * Send a message to chii client. Called by pptr.
++     */
++    onPptrToChiiMessage: (message: string) => void,
++    /**
++     * Called by pptr.
++     */
++    onPptrToChiiClose: () => void,
++  ) {
++    this.send = onPptrToChiiMessage;
++    this.close = onPptrToChiiClose;
++  }
++
++  /**
++   * Send a message to chii client. Called by pptr.
++   */
++  send: (message: string) => void;
++
++  /**
++   * Called by pptr.
++   */
++  close: () => void;
++
++  /**
++   * Called by chii.
++   */
++  onmessage?: ((message: string) => void) | undefined;
++  onclose?: (() => void) | undefined;
++
++  sendMessageToPptr = (message: string) => {
++    this.onmessage?.(message);
++  };
++
++  closePptr = () => {
++    this.onclose?.();
++  };
++}
++
++export class WebviewDevtoolsMcpContext {
 +  constructor(private chiiCtx: ChiiCtx) {
 +    chiiCtx.wss.channelManager.on('target_changed', () => {
 +      const targets = chiiCtx.wss.channelManager.getTargets() as Record<
@@ -108,7 +148,7 @@ index 0000000..3da510e
 +        // target is forwarded up to puppeteer.
 +        emitter.send = (message: string) => {
 +          if (this.selectedTargetId === targetId) {
-+            this.onmessage?.(message);
++            this.transport.sendMessageToPptr(message);
 +          }
 +        };
 +
@@ -149,20 +189,10 @@ index 0000000..3da510e
 +      port: 9333,
 +    });
 +
-+    return new WebviewDevtoolsMcpTransport(chiiCtx);
++    return new WebviewDevtoolsMcpContext(chiiCtx);
 +  };
 +
-+  /**
-+   * Call this method using optional chaining when received a message from chii client.
-+   */
-+  onmessage?: ((message: string) => void) | undefined;
-+
-+  onclose?: (() => void) | undefined;
-+
-+  /**
-+   * Send a message to chii client.
-+   */
-+  send = (message: string): void => {
++  onPptrToChiiMessage = (message: string): void => {
 +    const targetId = this.selectedTargetId;
 +    if (!targetId) {
 +      return;
@@ -173,14 +203,15 @@ index 0000000..3da510e
 +    this.map[targetId]?.emitter.emit('message', message);
 +  };
 +
-+  close = (): void => {
++  onPptrToChiiClose = (): void => {
 +    // TODO: dispose chii server
 +    // This should close the connection to one single chii client,
 +    // but since the entire chii server is created within this class,
 +    // we just close the chii server directly
 +  };
 +
-+  closePuppeteer = () => {
-+    this.onclose?.();
-+  };
++  transport = new WebviewDevtoolsMcpTransport(
++    this.onPptrToChiiMessage,
++    this.onPptrToChiiClose,
++  );
 +}

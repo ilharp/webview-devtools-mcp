@@ -8,14 +8,14 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/src/browser.ts b/src/browser.ts
-index 6b077ad..282d30c 100644
+index 6b077ad..dd016e3 100644
 --- a/src/browser.ts
 +++ b/src/browser.ts
 @@ -17,6 +17,7 @@ import type {
    Target,
  } from './third_party/index.js';
  import {puppeteer} from './third_party/index.js';
-+import {WebviewDevtoolsMcpTransport} from './wdmcp.js';
++import {WebviewDevtoolsMcpContext} from './wdmcp.js';
  
  let browser: Browser | undefined;
  let browserMode: 'launched' | 'connected' | undefined;
@@ -30,7 +30,7 @@ index 6b077ad..282d30c 100644
 +    handleDevToolsAsPage: true,
 +    blocklist: options.blocklist,
 +    allowlist: options.allowlist,
-+    transport: await WebviewDevtoolsMcpTransport.create(),
++    transport: (await WebviewDevtoolsMcpContext.create()).transport,
 +  };
 +
 +  logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions2));
