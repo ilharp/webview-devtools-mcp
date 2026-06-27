@@ -1,0 +1,4 @@
+{
+  // Do not format upstream code.
+  "editor.formatOnSave": false,
+}
