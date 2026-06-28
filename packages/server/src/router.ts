@@ -29,7 +29,7 @@ export const router = (channelManager: ChannelManager, basePath: string) => {
   function createStaticFile(file: string) {
     router.get(`${basePath}${file}`, async (ctx) => {
       await send(ctx, file, {
-        root: path.resolve(import.meta.dirname, '../../public'),
+        root: path.resolve(import.meta.dirname, '../../server'),
         maxAge,
       })
     })
