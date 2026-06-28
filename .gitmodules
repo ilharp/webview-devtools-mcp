@@ -4,3 +4,6 @@
 [submodule "packages/chrome-devtools-mcp"]
 	path = packages/chrome-devtools-mcp
 	url = https://github.com/ChromeDevTools/chrome-devtools-mcp.git
+[submodule "packages/chobitsu"]
+	path = packages/chobitsu
+	url = https://github.com/liriliri/chobitsu.git
