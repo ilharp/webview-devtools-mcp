@@ -3,3 +3,4 @@
 0002-emit-server-dts.patch
 0003-add-types-field.patch
 0100-expose-wss.patch
+0110-log-to-stderr.patch

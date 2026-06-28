@@ -1,0 +1,20 @@
+refactor: log to stderr
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ server/lib/util.js |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/server/lib/util.js b/server/lib/util.js
+index 41f481e..08899c4 100644
+--- a/server/lib/util.js
++++ b/server/lib/util.js
+@@ -6,5 +6,5 @@ exports.log = function () {
+ 
+   args.unshift(dateFormat('yyyy-mm-dd HH:MM:ss'));
+ 
+-  console.log.apply(console, args);
++  console.error.apply(console, args);
+ };
