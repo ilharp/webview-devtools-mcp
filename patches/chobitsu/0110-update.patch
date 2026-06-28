@@ -1,0 +1,125 @@
+feat: update
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ src/domains/Page.ts    |   44 +++++++++++++++++++++++++++++++++++++++++++-
+ src/domains/Runtime.ts |   11 +++--------
+ src/lib/constants.ts   |    1 +
+ 3 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/src/domains/Page.ts b/src/domains/Page.ts
+index 45c1752..472161d 100644
+--- a/src/domains/Page.ts
++++ b/src/domains/Page.ts
+@@ -5,7 +5,7 @@ import now from 'licia/now'
+ import Readiness from 'licia/Readiness'
+ import map from 'licia/map'
+ import { fullUrl } from '../lib/request'
+-import { MAIN_FRAME_ID } from '../lib/constants'
++import { MAIN_FRAME_ID, MAIN_LOADER_ID } from '../lib/constants'
+ import {
+   getBase64Content,
+   getTextContent,
+@@ -13,6 +13,7 @@ import {
+   getUrl,
+ } from '../lib/util'
+ import connector from '../lib/connector'
++import { createContext } from '../lib/executionContext'
+ import { isValidNode } from '../lib/nodeManager'
+ import html2canvas, { Options as html2canvasOptions } from 'html2canvas'
+ import * as resources from '../lib/resources'
+@@ -29,6 +30,47 @@ export function enable() {
+   stopScreencast()
+ }
+ 
++// puppeteer's FrameManager.initialize() needs the frame tree to build its frame
++// model. chobitsu is single-frame, so report just the main frame.
++export function getFrameTree() {
++  return {
++    frameTree: {
++      frame: {
++        id: MAIN_FRAME_ID,
++        loaderId: MAIN_LOADER_ID,
++        url: getUrl(),
++        domainAndRegistry: '',
++        securityOrigin: getOrigin(),
++        mimeType: 'text/html',
++        secureContextType: 'Secure',
++        crossOriginIsolatedContextType: 'NotIsolated',
++        gatedAPIFeatures: [],
++      },
++    },
++  }
++}
++
++// Lifecycle events aren't modeled yet; ack so page creation doesn't fail.
++export function setLifecycleEventsEnabled() {}
++
++let scriptIdSeq = 0
++
++// puppeteer registers a utility-world preload script before creating the
++// isolated world. chobitsu doesn't re-inject on navigation, but the call must
++// return an identifier so the isolated-world setup proceeds.
++export function addScriptToEvaluateOnNewDocument() {
++  return { identifier: `${++scriptIdSeq}` }
++}
++
++export function removeScriptToEvaluateOnNewDocument() {}
++
++export function createIsolatedWorld(
++  params: Page.CreateIsolatedWorldRequest
++): Page.CreateIsolatedWorldResponse {
++  const executionContextId = createContext(params.worldName || '')
++  return { executionContextId }
++}
++
+ export function reload() {
+   location.reload()
+ }
+diff --git a/src/domains/Runtime.ts b/src/domains/Runtime.ts
+index beaee5d..a7ca7ac 100644
+--- a/src/domains/Runtime.ts
++++ b/src/domains/Runtime.ts
+@@ -13,14 +13,9 @@ import * as objManager from '../lib/objManager'
+ import { evalJs, evalJsAsync, setGlobal } from '../lib/evaluate'
+ import Protocol from 'devtools-protocol'
+ import { getTimestamp } from '../lib/util'
++import { mainContext } from '../lib/executionContext'
+ import Runtime = Protocol.Runtime
+ 
+-const executionContext = {
+-  id: 1,
+-  name: 'top',
+-  origin: location.origin,
+-}
+-
+ export async function callFunctionOn(
+   params: Runtime.CallFunctionOnRequest
+ ): Promise<Runtime.CallFunctionOnResponse> {
+@@ -55,7 +50,7 @@ export function enable() {
+   triggers = []
+ 
+   trigger('Runtime.executionContextCreated', {
+-    context: executionContext,
++    context: mainContext,
+   })
+ }
+ 
+@@ -161,7 +156,7 @@ function monitorConsole() {
+           callFrames:
+             type === 'error' || type === 'warning' ? getCallFrames() : [],
+         },
+-        executionContextId: executionContext.id,
++        executionContextId: mainContext.id,
+         timestamp,
+       })
+     }
+diff --git a/src/lib/constants.ts b/src/lib/constants.ts
+index 198c64e..e14ed18 100644
+--- a/src/lib/constants.ts
++++ b/src/lib/constants.ts
+@@ -1 +1,2 @@
+ export const MAIN_FRAME_ID = '1'
++export const MAIN_LOADER_ID = '1'

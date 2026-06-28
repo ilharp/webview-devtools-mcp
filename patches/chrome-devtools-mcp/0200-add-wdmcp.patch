@@ -4,54 +4,47 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/third_party/index.ts |    5 +
- src/wdmcp.ts             |  187 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 192 insertions(+)
+ src/third_party/index.ts |    4 
+ src/wdmcp.ts             |  603 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 607 insertions(+)
  create mode 100644 src/wdmcp.ts
 
 diff --git a/src/third_party/index.ts b/src/third_party/index.ts
-index 222f149..5c81ea4 100644
+index 222f149..2e6fb55 100644
 --- a/src/third_party/index.ts
 +++ b/src/third_party/index.ts
-@@ -83,3 +83,8 @@ export const generateReport = generateReportImpl as (
+@@ -83,3 +83,7 @@ export const generateReport = generateReportImpl as (
  ) => string;
  
  export * as DevTools from '../../node_modules/chrome-devtools-frontend/mcp/mcp.js';
 +
-+export * as chii from 'chii';
-+export * as licia from 'licia';
-+import LiciaEmitter from 'licia/Emitter.js';
-+export {LiciaEmitter};
++export * as chii from '@wdmcp/server';
++import type {ChiiTarget} from '../../../server/lib/types.js';
++export type {ChiiTarget};
 diff --git a/src/wdmcp.ts b/src/wdmcp.ts
 new file mode 100644
-index 0000000..a8e5d1f
+index 0000000..7faa119
 --- /dev/null
 +++ b/src/wdmcp.ts
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,603 @@
 +/* eslint-disable @local/check-license */
++
++import {EventEmitter} from 'node:events';
 +
 +import type {ConnectionTransport} from 'puppeteer';
 +import type {WebSocket} from 'ws';
 +
-+import {chii, LiciaEmitter as Emitter} from './third_party/index.js';
++import {logger} from './logger.js';
++import type {ChiiTarget} from './third_party/index.js';
++import {chii} from './third_party/index.js';
 +
 +const {start} = chii;
 +
 +type ChiiCtx = Awaited<ReturnType<typeof start>>;
 +
++const CHII_PORT = 9333;
 +const CHII_CLIENT_PREFIX = 'wdmcp_client_';
-+
-+interface ChiiTarget {
-+  id: string;
-+  title: string;
-+  url: string;
-+  favicon: string;
-+  channel: string;
-+  ws: WebSocket;
-+  ip: string;
-+  userAgent: string;
-+  rtc: unknown;
-+}
++const SESSION_PREFIX = 'wdmcp_sess_';
 +
 +/**
 + * A virtual websocket bridging this transport and a single chii client.
@@ -59,7 +52,7 @@ index 0000000..a8e5d1f
 + * chii drives it just like a real `ws`: it subscribes to `message`/`close`
 + * and calls `send` to deliver messages coming back from the target.
 + */
-+interface ChiiClientWs extends Emitter {
++interface ChiiClientWs extends EventEmitter {
 +  /** Called by chii with messages coming from the target. */
 +  send(message: string): void;
 +
@@ -67,151 +60,573 @@ index 0000000..a8e5d1f
 +  close(): void;
 +}
 +
++/** Minimal CDP message envelope (flat / "flatten" session mode). */
++interface CdpMessage {
++  id?: number;
++  method?: string;
++  params?: Record<string, unknown>;
++  result?: unknown;
++  error?: {code?: number; message: string};
++  sessionId?: string;
++}
++
++/** The subset of `Target.TargetInfo` puppeteer reads. */
++interface TargetInfo {
++  targetId: string;
++  type: 'page';
++  title: string;
++  url: string;
++  attached: boolean;
++  canAccessOpener: boolean;
++}
++
 +export class WebviewDevtoolsMcpTransport implements ConnectionTransport {
 +  constructor(
 +    /**
 +     * Send a message to chii client. Called by pptr.
 +     */
-+    onPptrToChiiMessage: (message: string) => void,
++    private onPptrToChiiMessage: (message: string) => void,
 +    /**
 +     * Called by pptr.
 +     */
-+    onPptrToChiiClose: () => void,
-+  ) {
-+    this.send = onPptrToChiiMessage;
-+    this.close = onPptrToChiiClose;
-+  }
++    private onPptrToChiiClose: () => void,
++  ) {}
 +
 +  /**
 +   * Send a message to chii client. Called by pptr.
 +   */
-+  send: (message: string) => void;
++  send = (message: string): void => {
++    logger?.(`[wdmcp] [pptr->chii] ${message}`);
++    this.onPptrToChiiMessage(message);
++  };
 +
 +  /**
 +   * Called by pptr.
 +   */
-+  close: () => void;
++  close = (): void => {
++    logger?.(`[wdmcp] [pptr->chii] close`);
++    this.onPptrToChiiClose();
++  };
 +
 +  /**
 +   * Called by chii.
 +   */
 +  onmessage?: ((message: string) => void) | undefined;
++
++  /**
++   * Called by chii.
++   */
 +  onclose?: (() => void) | undefined;
 +
 +  sendMessageToPptr = (message: string) => {
++    logger?.(`[wdmcp] [chii->pptr] ${message}`);
 +    this.onmessage?.(message);
 +  };
 +
 +  closePptr = () => {
++    logger?.(`[wdmcp] [chii->pptr] close`);
 +    this.onclose?.();
 +  };
 +}
 +
++/**
++ * CDP multiplexer / virtual browser endpoint.
++ *
++ * puppeteer's `ConnectionTransport` contract assumes the transport is already
++ * wired to a single, live, browser-level CDP endpoint. Here the real backends
++ * (webviews running chobitsu) connect later, asynchronously, 0..N of them, and
++ * come and go over time. A single chobitsu is a flat, page-level session: it has
++ * no `Browser` domain, only stub `Target` methods, and no `sessionId` concept.
++ *
++ * This class bridges that gap. It answers the browser/`Target` handshake itself
++ * (so `puppeteer.connect()` resolves immediately, even with zero webviews),
++ * presents every chii target as an independent CDP page target, and forwards
++ * page-level traffic to the right chobitsu by stamping/stripping `sessionId`.
++ * Webview connect/reload/disconnect become standard
++ * `Target.targetCreated`/`attachedToTarget`/`targetDestroyed` events, so
++ * puppeteer never sees a stale session.
++ */
 +export class WebviewDevtoolsMcpContext {
-+  constructor(private chiiCtx: ChiiCtx) {
-+    chiiCtx.wss.channelManager.on('target_changed', () => {
-+      const targets = chiiCtx.wss.channelManager.getTargets() as Record<
-+        string,
-+        ChiiTarget
-+      >;
++  private chiiCtx: ChiiCtx;
 +
-+      // Currently use the last (newest) target as the selected target.
-+      const [id] = Object.keys(targets).reverse();
++  /** Live chii targets, keyed by chii target id (== our CDP targetId). */
++  #targets = new Map<
++    string,
++    {clientId: string; emitter: ChiiClientWs; target: ChiiTarget}
++  >();
 +
-+      if (id) {
-+        this.selectedTargetId = id;
-+      }
++  /** puppeteer sessionId -> chii targetId. */
++  #sessionToTarget = new Map<string, string>();
 +
-+      const targetIds = Object.keys(targets);
++  /** chii targetId -> set of puppeteer sessionIds attached to it. */
++  #targetSessions = new Map<string, Set<string>>();
 +
-+      // Create a chii client for every target that appeared since last time.
-+      for (const targetId of targetIds) {
-+        if (this.map[targetId]) {
-+          continue;
-+        }
++  /**
++   * In-flight forwarded request id -> originating sessionId. Lets us route a
++   * flat chobitsu response (which carries only `id`) back to the right session.
++   * Safe because puppeteer's id generator is shared across sessions, so ids are
++   * globally unique on this connection.
++   */
++  #pendingId = new Map<number, string>();
 +
-+        const target = targets[targetId];
-+        const clientId = `${CHII_CLIENT_PREFIX}${targetId}`;
++  /** Set once puppeteer enables target discovery (`Target.setDiscoverTargets`). */
++  #discovering = false;
 +
-+        // The virtual websocket chii talks to on behalf of this transport.
-+        const emitter = new Emitter() as ChiiClientWs;
++  #sessionSeq = 0;
 +
-+        // chii owns this client's lifecycle: when the target ws closes it
-+        // calls `close` (via the listener createClient puts on target.ws),
-+        // which must emit `close` so chii can destroy the channel and drop
-+        // the client. So it is only ever called once, by chii.
-+        emitter.close = () => {
-+          emitter.emit('close');
-+        };
++  /** Resolvers waiting for the first webview to connect. */
++  #firstTargetWaiters: Array<() => void> = [];
 +
-+        // chii delivers target messages here. Only the currently selected
-+        // target is forwarded up to puppeteer.
-+        emitter.send = (message: string) => {
-+          if (this.selectedTargetId === targetId) {
-+            this.transport.sendMessageToPptr(message);
-+          }
-+        };
++  /**
++   * The puppeteer-facing transport. Field initializers run before the
++   * constructor body, but the wrappers defer to call time so order is moot.
++   */
++  transport = new WebviewDevtoolsMcpTransport(
++    (message: string) => {
++      this.#onPptrMessage(message);
++    },
++    () => {
++      this.#onPptrToChiiClose();
++    },
++  );
 +
-+        chiiCtx.wss.channelManager.createClient(clientId, emitter, targetId);
-+
-+        this.map[targetId] = {emitter, clientId, target};
-+      }
-+
-+      // Drop bookkeeping for targets that have disappeared. chii already
-+      // disposed the corresponding client when the target ws closed, so we
-+      // only need to forget it here.
-+      for (const targetId of Object.keys(this.map)) {
-+        if (targets[targetId]) {
-+          continue;
-+        }
-+
-+        delete this.map[targetId];
-+      }
-+    });
++  constructor(chiiCtx: ChiiCtx) {
++    this.chiiCtx = chiiCtx;
++    chiiCtx.wss.channelManager.on('target_changed', this.#onTargetChanged);
++    // Pick up any targets that connected before we subscribed.
++    this.#onTargetChanged();
 +  }
 +
-+  selectedTargetId: string | undefined = undefined;
-+
-+  map: Record<
-+    /** targetId */
-+    string,
-+    {
-+      emitter: ChiiClientWs;
-+
-+      clientId: string;
-+
-+      target: ChiiTarget;
-+    }
-+  > = {};
-+
 +  static create = async () => {
-+    const chiiCtx = await start({
-+      port: 9333,
++    const chiiCtx = start({
++      port: CHII_PORT,
++      log: (...args) => {
++        logger?.(...args);
++      },
 +    });
 +
 +    return new WebviewDevtoolsMcpContext(chiiCtx);
 +  };
 +
-+  onPptrToChiiMessage = (message: string): void => {
-+    const targetId = this.selectedTargetId;
-+    if (!targetId) {
++  /**
++   * Resolves once at least one webview is connected. Used to make the first
++   * tool call wait for a target instead of failing with "No page selected".
++   */
++  whenFirstTargetReady = (timeoutMs: number): Promise<void> => {
++    if (this.#targets.size > 0) {
++      return Promise.resolve();
++    }
++    return new Promise<void>((resolve, reject) => {
++      let done = false;
++      const onReady = () => {
++        if (done) {
++          return;
++        }
++        done = true;
++        clearTimeout(timer);
++        resolve();
++      };
++      const timer = setTimeout(() => {
++        if (done) {
++          return;
++        }
++        done = true;
++        const i = this.#firstTargetWaiters.indexOf(onReady);
++        if (i >= 0) {
++          this.#firstTargetWaiters.splice(i, 1);
++        }
++        reject(
++          new Error(
++            `No webview connected to ws://127.0.0.1:${CHII_PORT} within ${timeoutMs}ms. Open your webview (inject chii target.js) and retry.`,
++          ),
++        );
++      }, timeoutMs);
++      this.#firstTargetWaiters.push(onReady);
++    });
++  };
++
++  // ---------------------------------------------------------------------------
++  // chii target lifecycle
++  // ---------------------------------------------------------------------------
++
++  #onTargetChanged = () => {
++    const targets = this.chiiCtx.wss.channelManager.getTargets() as Record<
++      string,
++      ChiiTarget
++    >;
++
++    // Additions and identity changes (same id, new connection == reload).
++    for (const targetId of Object.keys(targets)) {
++      const target = targets[targetId];
++      const existing = this.#targets.get(targetId);
++      if (existing) {
++        if (existing.target === target) {
++          continue;
++        }
++        // Same id, different chii target object: the webview reconnected
++        // (e.g. reload). Tear the old one down before recreating so puppeteer
++        // sees a clean destroy + create rather than a silently-swapped backend.
++        this.#destroyTarget(targetId);
++      }
++
++      const clientId = `${CHII_CLIENT_PREFIX}${targetId}`;
++      const emitter = new EventEmitter() as ChiiClientWs;
++
++      // chii owns this client's lifecycle: when the target ws closes it calls
++      // `close` (via the listener createClient puts on target.ws), which emits
++      // `close` so chii destroys the channel and drops the client.
++      emitter.close = () => {
++        emitter.emit('close');
++      };
++
++      // chii delivers this target's messages here.
++      emitter.send = (message: string) => {
++        this.#onChiiToPptr(targetId, message);
++      };
++
++      this.chiiCtx.wss.channelManager.createClient(
++        clientId,
++        emitter as unknown as WebSocket,
++        targetId,
++      );
++
++      this.#targets.set(targetId, {clientId, emitter, target});
++
++      if (this.#discovering) {
++        this.#emitTargetCreated(targetId, target, false);
++      }
++    }
++
++    // Removals.
++    for (const targetId of [...this.#targets.keys()]) {
++      if (targets[targetId]) {
++        continue;
++      }
++      this.#destroyTarget(targetId);
++    }
++
++    if (this.#targets.size > 0) {
++      this.#flushFirstTargetWaiters();
++    }
++  };
++
++  #destroyTarget = (targetId: string) => {
++    const entry = this.#targets.get(targetId);
++
++    // Detach every session attached to this target.
++    const sessions = this.#targetSessions.get(targetId);
++    if (sessions) {
++      for (const sessionId of [...sessions]) {
++        this.#dropSession(sessionId, /* emitDetached */ true);
++      }
++    }
++
++    this.#targets.delete(targetId);
++
++    // Tear down the chii client channel.
++    entry?.emitter.close();
++
++    if (this.#discovering) {
++      this.#sendToPptr({method: 'Target.targetDestroyed', params: {targetId}});
++    }
++  };
++
++  // ---------------------------------------------------------------------------
++  // chobitsu -> puppeteer
++  // ---------------------------------------------------------------------------
++
++  #onChiiToPptr = (targetId: string, raw: string) => {
++    let msg: CdpMessage;
++    try {
++      msg = JSON.parse(raw) as CdpMessage;
++    } catch {
 +      return;
 +    }
 +
-+    // Hand the message to the selected target's virtual client. Its channel
-+    // is connected to the target channel, so chii relays it to the target.
-+    this.map[targetId]?.emitter.emit('message', message);
++    if (msg.id !== undefined) {
++      // Response to a request we forwarded. Route back to its session.
++      const sessionId = this.#pendingId.get(msg.id);
++      if (sessionId === undefined) {
++        return;
++      }
++      this.#pendingId.delete(msg.id);
++      this.#sendToPptr({...msg, sessionId});
++      return;
++    }
++
++    // Unsolicited event. Deliver to every session attached to this target;
++    // puppeteer's per-session `frame.client !== session` guards dedupe it.
++    const sessions = this.#targetSessions.get(targetId);
++    if (!sessions) {
++      return;
++    }
++    for (const sessionId of sessions) {
++      this.#sendToPptr({...msg, sessionId});
++    }
 +  };
 +
-+  onPptrToChiiClose = (): void => {
-+    // TODO: dispose chii server
-+    // This should close the connection to one single chii client,
-+    // but since the entire chii server is created within this class,
-+    // we just close the chii server directly
++  // ---------------------------------------------------------------------------
++  // puppeteer -> multiplexer
++  // ---------------------------------------------------------------------------
++
++  #onPptrMessage = (raw: string) => {
++    let msg: CdpMessage;
++    try {
++      msg = JSON.parse(raw) as CdpMessage;
++    } catch {
++      return;
++    }
++
++    if (msg.sessionId) {
++      this.#handleSessionMessage(msg);
++    } else {
++      this.#handleConnectionMessage(msg);
++    }
 +  };
 +
-+  transport = new WebviewDevtoolsMcpTransport(
-+    this.onPptrToChiiMessage,
-+    this.onPptrToChiiClose,
-+  );
++  #handleSessionMessage = (msg: CdpMessage) => {
++    const sessionId = msg.sessionId!;
++    const targetId = this.#sessionToTarget.get(sessionId);
++    if (!targetId) {
++      this.#replyError(msg.id, -32001, 'Session not found', sessionId);
++      return;
++    }
++
++    // We own the Target domain entirely (chobitsu only stubs it).
++    if (msg.method?.startsWith('Target.')) {
++      if (msg.id !== undefined) {
++        this.#sendToPptr({id: msg.id, sessionId, result: {}});
++      }
++      return;
++    }
++
++    const entry = this.#targets.get(targetId);
++    if (!entry) {
++      this.#replyError(msg.id, -32001, 'Target not found', sessionId);
++      return;
++    }
++
++    if (msg.id !== undefined) {
++      this.#pendingId.set(msg.id, sessionId);
++    }
++    // Strip sessionId; chobitsu speaks a flat single-session protocol.
++    entry.emitter.emit(
++      'message',
++      JSON.stringify({id: msg.id, method: msg.method, params: msg.params}),
++    );
++  };
++
++  #handleConnectionMessage = (msg: CdpMessage) => {
++    const {id, method} = msg;
++
++    switch (method) {
++      case 'Target.getBrowserContexts':
++        this.#reply(id, {browserContextIds: []});
++        return;
++
++      case 'Target.setDiscoverTargets': {
++        this.#discovering = true;
++        this.#reply(id, {});
++        // Surface targets that connected before discovery was enabled.
++        for (const [targetId, entry] of this.#targets) {
++          this.#emitTargetCreated(
++            targetId,
++            entry.target,
++            this.#targetSessions.has(targetId),
++          );
++        }
++        return;
++      }
++
++      case 'Target.setAutoAttach':
++      case 'Target.setRemoteLocations':
++      case 'Security.setIgnoreCertificateErrors':
++        this.#reply(id, {});
++        return;
++
++      case 'Target.getTargets': {
++        const targetInfos = [...this.#targets].map(([targetId, entry]) => {
++          return this.#targetInfo(
++            targetId,
++            entry.target,
++            this.#targetSessions.has(targetId),
++          );
++        });
++        this.#reply(id, {targetInfos});
++        return;
++      }
++
++      case 'Target.attachToTarget':
++        this.#attachToTarget(msg);
++        return;
++
++      case 'Target.detachFromTarget': {
++        const sessionId = (msg.params as {sessionId?: string} | undefined)
++          ?.sessionId;
++        if (sessionId) {
++          this.#dropSession(sessionId, /* emitDetached */ true);
++        }
++        this.#reply(id, {});
++        return;
++      }
++
++      case 'Browser.getVersion':
++        this.#reply(id, {
++          protocolVersion: '1.3',
++          product: 'Chrome/200.0.0.0',
++          revision: '',
++          userAgent: 'WebviewDevtoolsMcp',
++          jsVersion: '',
++        });
++        return;
++
++      case 'Browser.close':
++        this.#reply(id, {});
++        return;
++
++      case 'Target.createTarget':
++        this.#replyError(
++          id,
++          -32000,
++          'Creating pages is not supported for webview targets',
++        );
++        return;
++
++      default:
++        // Be lenient so an unanticipated browser-level call cannot stall the
++        // handshake. Session-level traffic never reaches here.
++        if (method) {
++          logger?.(`[wdmcp] unhandled connection-level method: ${method}`);
++        }
++        this.#reply(id, {});
++        return;
++    }
++  };
++
++  #attachToTarget = (msg: CdpMessage) => {
++    const targetId = (msg.params as {targetId?: string} | undefined)?.targetId;
++    const entry = targetId ? this.#targets.get(targetId) : undefined;
++    if (!targetId || !entry) {
++      this.#replyError(msg.id, -32602, 'No target with given id found');
++      return;
++    }
++
++    const sessionId = `${SESSION_PREFIX}${targetId}_${++this.#sessionSeq}`;
++    this.#sessionToTarget.set(sessionId, targetId);
++    let sessions = this.#targetSessions.get(targetId);
++    if (!sessions) {
++      sessions = new Set();
++      this.#targetSessions.set(targetId, sessions);
++    }
++    sessions.add(sessionId);
++
++    // Order matters: puppeteer's Connection creates the CDPSession when it sees
++    // `Target.attachedToTarget`, then resolves attachToTarget by looking that
++    // session up. Emit the event first, then the response.
++    this.#sendToPptr({
++      method: 'Target.attachedToTarget',
++      params: {
++        sessionId,
++        targetInfo: this.#targetInfo(targetId, entry.target, true),
++        waitingForDebugger: false,
++      },
++    });
++    this.#reply(msg.id, {sessionId});
++  };
++
++  #dropSession = (sessionId: string, emitDetached: boolean) => {
++    const targetId = this.#sessionToTarget.get(sessionId);
++    this.#sessionToTarget.delete(sessionId);
++    if (targetId) {
++      const sessions = this.#targetSessions.get(targetId);
++      sessions?.delete(sessionId);
++      if (sessions && sessions.size === 0) {
++        this.#targetSessions.delete(targetId);
++      }
++    }
++    // Drop any in-flight ids owned by this session.
++    for (const [pid, sid] of this.#pendingId) {
++      if (sid === sessionId) {
++        this.#pendingId.delete(pid);
++      }
++    }
++    if (emitDetached) {
++      this.#sendToPptr({
++        method: 'Target.detachedFromTarget',
++        params: {sessionId},
++      });
++    }
++  };
++
++  #onPptrToChiiClose = () => {
++    // puppeteer disconnected. Disposing the chii server is intentionally not
++    // done here yet (the server is shared / owns the static target.js route).
++  };
++
++  // ---------------------------------------------------------------------------
++  // helpers
++  // ---------------------------------------------------------------------------
++
++  #targetInfo = (
++    targetId: string,
++    target: ChiiTarget,
++    attached: boolean,
++  ): TargetInfo => {
++    return {
++      targetId,
++      type: 'page',
++      title: target.title || '',
++      url: target.url || '',
++      attached,
++      canAccessOpener: false,
++    };
++  };
++
++  #emitTargetCreated = (
++    targetId: string,
++    target: ChiiTarget,
++    attached: boolean,
++  ) => {
++    this.#sendToPptr({
++      method: 'Target.targetCreated',
++      params: {targetInfo: this.#targetInfo(targetId, target, attached)},
++    });
++  };
++
++  #flushFirstTargetWaiters = () => {
++    if (this.#firstTargetWaiters.length === 0) {
++      return;
++    }
++    const waiters = this.#firstTargetWaiters;
++    this.#firstTargetWaiters = [];
++    for (const waiter of waiters) {
++      waiter();
++    }
++  };
++
++  #reply = (id: number | undefined, result: Record<string, unknown>) => {
++    if (id !== undefined) {
++      this.#sendToPptr({id, result});
++    }
++  };
++
++  #replyError = (
++    id: number | undefined,
++    code: number,
++    message: string,
++    sessionId?: string,
++  ) => {
++    if (id === undefined) {
++      return;
++    }
++    const msg: CdpMessage = {id, error: {code, message}};
++    if (sessionId) {
++      msg.sessionId = sessionId;
++    }
++    this.#sendToPptr(msg);
++  };
++
++  #sendToPptr = (msg: CdpMessage | Record<string, unknown>) => {
++    this.transport.sendMessageToPptr(JSON.stringify(msg));
++  };
 +}

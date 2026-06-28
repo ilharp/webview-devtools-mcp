@@ -8,14 +8,14 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/package.json b/package.json
-index 99a2178..9884c18 100644
+index 99a2178..92d8c2e 100644
 --- a/package.json
 +++ b/package.json
 @@ -64,6 +64,7 @@
      "@types/yargs": "^17.0.33",
      "@typescript-eslint/eslint-plugin": "^8.43.0",
      "@typescript-eslint/parser": "^8.43.0",
-+    "chii": "workspace:^",
++    "@wdmcp/server": "workspace:^",
      "chrome-devtools-frontend": "1.0.1650035",
      "core-js": "3.49.0",
      "debug": "4.4.3",

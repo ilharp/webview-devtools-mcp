@@ -1,0 +1,33 @@
+chore: disable minimize
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ webpack.config.js |    7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/webpack.config.js b/webpack.config.js
+index f30c2be..0a8a915 100644
+--- a/webpack.config.js
++++ b/webpack.config.js
+@@ -1,7 +1,6 @@
+ const path = require('path')
+ const webpack = require('webpack')
+ const pkg = require('./package.json')
+-const TerserPlugin = require('terser-webpack-plugin')
+ 
+ const banner = pkg.name + ' v' + pkg.version + ' ' + pkg.homepage
+ 
+@@ -56,10 +55,6 @@ module.exports = {
+   },
+   plugins: [new webpack.BannerPlugin(banner)],
+   optimization: {
+-    minimizer: [
+-      new TerserPlugin({
+-        extractComments: false,
+-      }),
+-    ],
++    minimize: false,
+   },
+ }

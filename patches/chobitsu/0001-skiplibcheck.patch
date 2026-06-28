@@ -1,0 +1,21 @@
+chore: skipLibCheck
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ tsconfig.json |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tsconfig.json b/tsconfig.json
+index aeee9c6..883a7bc 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -7,6 +7,7 @@
+     "strictPropertyInitialization": false,
+     "removeComments": true,
+     "noUnusedLocals": true,
++    "skipLibCheck": true,
+     "target": "ES5",
+     "declaration": true,
+     "esModuleInterop": true,

@@ -4,11 +4,11 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/browser.ts |   14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ src/browser.ts |   22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)
 
 diff --git a/src/browser.ts b/src/browser.ts
-index 6b077ad..dd016e3 100644
+index 6b077ad..35b573d 100644
 --- a/src/browser.ts
 +++ b/src/browser.ts
 @@ -17,6 +17,7 @@ import type {
@@ -19,18 +19,20 @@ index 6b077ad..dd016e3 100644
  
  let browser: Browser | undefined;
  let browserMode: 'launched' | 'connected' | undefined;
-@@ -123,12 +124,21 @@ export async function ensureBrowserConnected(options: {
+@@ -123,12 +124,23 @@ export async function ensureBrowserConnected(options: {
      );
    }
  
 -  logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions));
++  const wdmcp = await WebviewDevtoolsMcpContext.create();
++
 +  const connectOptions2: Parameters<typeof puppeteer.connect>[0] = {
 +    targetFilter: makeTargetFilter(enableExtensions),
 +    defaultViewport: null,
 +    handleDevToolsAsPage: true,
 +    blocklist: options.blocklist,
 +    allowlist: options.allowlist,
-+    transport: (await WebviewDevtoolsMcpContext.create()).transport,
++    transport: wdmcp.transport,
 +  };
 +
 +  logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions2));
@@ -43,3 +45,16 @@ index 6b077ad..dd016e3 100644
      browserMode = 'connected';
      browser = connected;
    } catch (err) {
+@@ -140,6 +152,12 @@ export async function ensureBrowserConnected(options: {
+     );
+   }
+   logger?.('Connected Puppeteer');
++
++  // The multiplexer answers the browser-level handshake with zero webviews, so
++  // wait for the first one to connect before returning. Otherwise the first
++  // tool call selects no page and fails with "No page selected".
++  await wdmcp.whenFirstTargetReady(30_000);
++
+   return browser;
+ }
+ 
