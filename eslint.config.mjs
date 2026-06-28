@@ -10,7 +10,9 @@ import tseslint from 'typescript-eslint'
 
 // eslint-disable-next-line import-x/no-default-export
 export default defineConfig(
-  includeIgnoreFile(resolve(import.meta.dirname, '.gitignore'), { gitignoreResolution: true }),
+  includeIgnoreFile(resolve(import.meta.dirname, '.gitignore'), {
+    gitignoreResolution: true,
+  }),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
@@ -31,6 +33,12 @@ export default defineConfig(
   eslintPluginPrettierRecommended,
   {
     rules: {
+      'prefer-const': [
+        'error',
+        {
+          destructuring: 'all',
+        },
+      ],
       'import-x/no-default-export': 'error',
       'import-x/consistent-type-specifier-style': 'error',
       '@typescript-eslint/no-non-null-assertion': 'off',
@@ -41,6 +49,7 @@ export default defineConfig(
           argsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_',
           destructuredArrayIgnorePattern: '^_',
+          ignoreRestSiblings: true,
         },
       ],
       '@typescript-eslint/no-namespace': 'off',
@@ -55,6 +64,7 @@ export default defineConfig(
           allowConstantLoopConditions: 'only-allowed-literals',
         },
       ],
+      '@typescript-eslint/prefer-nullish-coalescing': 'off',
     },
   },
 )
