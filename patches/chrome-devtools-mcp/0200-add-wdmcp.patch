@@ -5,8 +5,8 @@ From: Il Harper <hi@ilharper.com>
 
 ---
  src/third_party/index.ts |    4 
- src/wdmcp.ts             |  603 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 607 insertions(+)
+ src/wdmcp.ts             |  651 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 655 insertions(+)
  create mode 100644 src/wdmcp.ts
 
 diff --git a/src/third_party/index.ts b/src/third_party/index.ts
@@ -23,10 +23,10 @@ index 222f149..2e6fb55 100644
 +export type {ChiiTarget};
 diff --git a/src/wdmcp.ts b/src/wdmcp.ts
 new file mode 100644
-index 0000000..7faa119
+index 0000000..2cfa43b
 --- /dev/null
 +++ b/src/wdmcp.ts
-@@ -0,0 +1,603 @@
+@@ -0,0 +1,651 @@
 +/* eslint-disable @local/check-license */
 +
 +import {EventEmitter} from 'node:events';
@@ -172,6 +172,13 @@ index 0000000..7faa119
 +  /** Set once puppeteer enables target discovery (`Target.setDiscoverTargets`). */
 +  #discovering = false;
 +
++  /**
++   * Set once puppeteer enables auto-attach (`Target.setAutoAttach`). puppeteer's
++   * ChromeTargetManager discovers pages exclusively through auto-attach, so
++   * until this is on we must not announce attachments.
++   */
++  #autoAttaching = false;
++
 +  #sessionSeq = 0;
 +
 +  /** Resolvers waiting for the first webview to connect. */
@@ -294,6 +301,9 @@ index 0000000..7faa119
 +
 +      if (this.#discovering) {
 +        this.#emitTargetCreated(targetId, target, false);
++      }
++      if (this.#autoAttaching) {
++        this.#autoAttach(targetId);
 +      }
 +    }
 +
@@ -438,7 +448,21 @@ index 0000000..7faa119
 +        return;
 +      }
 +
-+      case 'Target.setAutoAttach':
++      case 'Target.setAutoAttach': {
++        this.#autoAttaching = true;
++        this.#reply(id, {});
++        // puppeteer's ChromeTargetManager only promotes a target into the
++        // attached set (the backing store for `browser.pages()`) when it sees a
++        // `Target.attachedToTarget` event. A bare `Target.targetCreated` leaves
++        // the target merely "discovered", and puppeteer never attaches a page on
++        // its own. So we surface every known target through auto-attach, exactly
++        // as a real Chrome tab auto-attaches its page.
++        for (const targetId of this.#targets.keys()) {
++          this.#autoAttach(targetId);
++        }
++        return;
++      }
++
 +      case 'Target.setRemoteLocations':
 +      case 'Security.setIgnoreCertificateErrors':
 +        this.#reply(id, {});
@@ -503,12 +527,26 @@ index 0000000..7faa119
 +    }
 +  };
 +
-+  #attachToTarget = (msg: CdpMessage) => {
-+    const targetId = (msg.params as {targetId?: string} | undefined)?.targetId;
-+    const entry = targetId ? this.#targets.get(targetId) : undefined;
-+    if (!targetId || !entry) {
-+      this.#replyError(msg.id, -32602, 'No target with given id found');
++  /**
++   * Surface a target to puppeteer through the auto-attach mechanism. Idempotent:
++   * skips a target puppeteer already knows about (one that has any live session).
++   */
++  #autoAttach = (targetId: string) => {
++    if (this.#targetSessions.has(targetId)) {
 +      return;
++    }
++    this.#openSession(targetId);
++  };
++
++  /**
++   * Allocate a session for `targetId`, record the mapping, and announce it with
++   * `Target.attachedToTarget`. Returns the new sessionId, or undefined when the
++   * target is unknown.
++   */
++  #openSession = (targetId: string): string | undefined => {
++    const entry = this.#targets.get(targetId);
++    if (!entry) {
++      return undefined;
 +    }
 +
 +    const sessionId = `${SESSION_PREFIX}${targetId}_${++this.#sessionSeq}`;
@@ -520,9 +558,6 @@ index 0000000..7faa119
 +    }
 +    sessions.add(sessionId);
 +
-+    // Order matters: puppeteer's Connection creates the CDPSession when it sees
-+    // `Target.attachedToTarget`, then resolves attachToTarget by looking that
-+    // session up. Emit the event first, then the response.
 +    this.#sendToPptr({
 +      method: 'Target.attachedToTarget',
 +      params: {
@@ -531,6 +566,19 @@ index 0000000..7faa119
 +        waitingForDebugger: false,
 +      },
 +    });
++    return sessionId;
++  };
++
++  #attachToTarget = (msg: CdpMessage) => {
++    const targetId = (msg.params as {targetId?: string} | undefined)?.targetId;
++    // Order matters: puppeteer's Connection creates the CDPSession when it sees
++    // `Target.attachedToTarget`, then resolves attachToTarget by looking that
++    // session up. #openSession emits the event; we then send the response.
++    const sessionId = targetId ? this.#openSession(targetId) : undefined;
++    if (!sessionId) {
++      this.#replyError(msg.id, -32602, 'No target with given id found');
++      return;
++    }
 +    this.#reply(msg.id, {sessionId});
 +  };
 +

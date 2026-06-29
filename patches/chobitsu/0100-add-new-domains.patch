@@ -1,0 +1,395 @@
+feat: add executionContext
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ src/domains/Accessibility.ts |  326 ++++++++++++++++++++++++++++++++++++++++++
+ src/lib/executionContext.ts  |   45 ++++++
+ 2 files changed, 371 insertions(+)
+ create mode 100644 src/domains/Accessibility.ts
+ create mode 100644 src/lib/executionContext.ts
+
+diff --git a/src/domains/Accessibility.ts b/src/domains/Accessibility.ts
+new file mode 100644
+index 0000000..43c55d9
+--- /dev/null
++++ b/src/domains/Accessibility.ts
+@@ -0,0 +1,326 @@
++import * as nodeManager from '../lib/nodeManager'
++import trim from 'licia/trim'
++import each from 'licia/each'
++import Protocol from 'devtools-protocol'
++import Accessibility = Protocol.Accessibility
++
++// chrome-devtools-mcp (via puppeteer's `page.accessibility.snapshot()`) needs
++// this domain to build the text snapshot used by `take_snapshot` and to map
++// a11y nodes back to DOM nodes for clicking/typing. Chrome's real accessibility
++// tree is not reachable from JS, so we approximate it by
++// walking the DOM and computing ARIA roles and accessible names.
++
++function str(value: string): Accessibility.AXValue {
++  return { type: 'string' as Accessibility.AXValueType, value }
++}
++
++function bool(value: boolean): Accessibility.AXValue {
++  return { type: 'booleanOrUndefined' as Accessibility.AXValueType, value }
++}
++
++function collapse(text: string): string {
++  return trim(text.replace(/\s+/g, ' '))
++}
++
++function isHidden(el: Element): boolean {
++  if (el.getAttribute('aria-hidden') === 'true') return true
++  if ((el as HTMLElement).hidden) return true
++  try {
++    const style = window.getComputedStyle(el)
++    if (style.display === 'none' || style.visibility === 'hidden') return true
++  } catch (e) {
++    /* not stylable, ignore */
++  }
++  return false
++}
++
++function inputRole(el: HTMLInputElement): string {
++  switch ((el.getAttribute('type') || 'text').toLowerCase()) {
++    case 'button':
++    case 'submit':
++    case 'reset':
++    case 'image':
++      return 'button'
++    case 'checkbox':
++      return 'checkbox'
++    case 'radio':
++      return 'radio'
++    case 'range':
++      return 'slider'
++    case 'number':
++      return 'spinbutton'
++    case 'search':
++      return 'searchbox'
++    case 'hidden':
++      return 'none'
++    default:
++      return 'textbox'
++  }
++}
++
++function computeRole(el: Element): string {
++  const explicit = el.getAttribute('role')
++  if (explicit) return explicit.split(/\s+/)[0]
++
++  const tag = el.tagName.toLowerCase()
++  switch (tag) {
++    case 'a':
++    case 'area':
++      return el.hasAttribute('href') ? 'link' : 'generic'
++    case 'button':
++      return 'button'
++    case 'input':
++      return inputRole(el as HTMLInputElement)
++    case 'textarea':
++      return 'textbox'
++    case 'select':
++      return (el as HTMLSelectElement).multiple ? 'listbox' : 'combobox'
++    case 'option':
++      return 'option'
++    case 'img':
++      return 'img'
++    case 'h1':
++    case 'h2':
++    case 'h3':
++    case 'h4':
++    case 'h5':
++    case 'h6':
++      return 'heading'
++    case 'nav':
++      return 'navigation'
++    case 'main':
++      return 'main'
++    case 'header':
++      return 'banner'
++    case 'footer':
++      return 'contentinfo'
++    case 'aside':
++      return 'complementary'
++    case 'form':
++      return 'form'
++    case 'article':
++      return 'article'
++    case 'ul':
++    case 'ol':
++      return 'list'
++    case 'li':
++      return 'listitem'
++    case 'table':
++      return 'table'
++    case 'tr':
++      return 'row'
++    case 'td':
++      return 'cell'
++    case 'th':
++      return 'columnheader'
++    case 'p':
++      return 'paragraph'
++    case 'section':
++      return ariaName(el) ? 'region' : 'generic'
++    default:
++      return 'generic'
++  }
++}
++
++// Accessible name from aria-* attributes only.
++function ariaName(el: Element): string {
++  const ariaLabel = el.getAttribute('aria-label')
++  if (ariaLabel) return collapse(ariaLabel)
++
++  const labelledby = el.getAttribute('aria-labelledby')
++  if (labelledby) {
++    const parts: string[] = []
++    each(labelledby.split(/\s+/), (id: string) => {
++      const ref = document.getElementById(id)
++      if (ref) parts.push(ref.textContent || '')
++    })
++    const name = collapse(parts.join(' '))
++    if (name) return name
++  }
++
++  return ''
++}
++
++function labelText(el: HTMLElement): string {
++  const labels = (el as any).labels as NodeListOf<HTMLElement> | undefined
++  if (labels && labels.length) {
++    const parts: string[] = []
++    each(labels, (label: HTMLElement) => parts.push(label.textContent || ''))
++    return collapse(parts.join(' '))
++  }
++  return ''
++}
++
++function computeName(el: Element, role: string): string {
++  const aria = ariaName(el)
++  if (aria) return aria
++
++  const tag = el.tagName.toLowerCase()
++
++  if (tag === 'img' || tag === 'area') {
++    return collapse(el.getAttribute('alt') || '')
++  }
++  if (tag === 'input') {
++    const input = el as HTMLInputElement
++    if (role === 'button') {
++      return collapse(input.value || input.getAttribute('alt') || '')
++    }
++    return (
++      labelText(input) ||
++      collapse(
++        input.getAttribute('placeholder') || input.getAttribute('title') || '',
++      )
++    )
++  }
++  if (tag === 'textarea' || tag === 'select') {
++    return (
++      labelText(el as HTMLElement) ||
++      collapse(el.getAttribute('placeholder') || el.getAttribute('title') || '')
++    )
++  }
++
++  // For interactive / heading / option roles, the visible text is the name.
++  switch (role) {
++    case 'link':
++    case 'button':
++    case 'heading':
++    case 'option':
++    case 'menuitem':
++    case 'tab':
++    case 'columnheader':
++    case 'cell':
++      return collapse(el.textContent || '')
++    default:
++      return collapse(el.getAttribute('title') || '')
++  }
++}
++
++const FOCUSABLE_TAGS = ['a', 'button', 'input', 'select', 'textarea']
++
++function isFocusable(el: Element): boolean {
++  const tag = el.tagName.toLowerCase()
++  if (tag === 'a' || tag === 'area') return el.hasAttribute('href')
++  if (FOCUSABLE_TAGS.indexOf(tag) !== -1) {
++    return !(el as HTMLInputElement).disabled
++  }
++  if (el.hasAttribute('tabindex')) return true
++  if ((el as HTMLElement).isContentEditable) return true
++  return false
++}
++
++class Builder {
++  nodes: Accessibility.AXNode[] = []
++  private id = 0
++
++  private nextId(): string {
++    return `ax_${++this.id}`
++  }
++
++  build(): Accessibility.AXNode[] {
++    const root: Accessibility.AXNode = {
++      nodeId: this.nextId(),
++      ignored: false,
++      role: str('RootWebArea'),
++      name: str(document.title || ''),
++      childIds: [],
++      backendDOMNodeId: nodeManager.getOrCreateNodeId(document.documentElement),
++    }
++    this.nodes.push(root)
++    root.childIds = this.buildChildren(
++      document.body || document.documentElement,
++    )
++    return this.nodes
++  }
++
++  private buildChildren(parent: Node): string[] {
++    const childIds: string[] = []
++    const children = nodeManager.filterNodes((parent as any).childNodes)
++    each(children, (child: Node) => {
++      const id = this.buildNode(child)
++      if (id) childIds.push(id)
++    })
++    return childIds
++  }
++
++  private buildNode(node: Node): string | null {
++    if (node.nodeType === 3) {
++      const text = collapse(node.nodeValue || '')
++      if (!text) return null
++      const id = this.nextId()
++      this.nodes.push({
++        nodeId: id,
++        ignored: false,
++        role: str('StaticText'),
++        name: str(text),
++        backendDOMNodeId: nodeManager.getOrCreateNodeId(node),
++      })
++      return id
++    }
++
++    if (node.nodeType !== 1) return null
++    const el = node as Element
++    if (isHidden(el)) return null
++
++    const role = computeRole(el)
++    if (role === 'none' && !el.childNodes.length) return null
++
++    const id = this.nextId()
++    const payload: Accessibility.AXNode = {
++      nodeId: id,
++      ignored: false,
++      role: str(role),
++      name: str(computeName(el, role)),
++      properties: this.computeProperties(el, role),
++      backendDOMNodeId: nodeManager.getOrCreateNodeId(el),
++    }
++
++    const tag = el.tagName.toLowerCase()
++    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
++      payload.value = str((el as HTMLInputElement).value || '')
++    }
++
++    // Leaf roles: do not expose internal children.
++    const isLeaf = tag === 'img' || role === 'textbox' || role === 'slider'
++    payload.childIds = isLeaf ? [] : this.buildChildren(el)
++
++    this.nodes.push(payload)
++    return id
++  }
++
++  private computeProperties(
++    el: Element,
++    role: string,
++  ): Accessibility.AXProperty[] {
++    const properties: Accessibility.AXProperty[] = []
++
++    if (isFocusable(el)) {
++      properties.push({ name: 'focusable', value: bool(true) })
++    }
++    if ((el as HTMLInputElement).disabled) {
++      properties.push({ name: 'disabled', value: bool(true) })
++    }
++    if (role === 'checkbox' || role === 'radio') {
++      properties.push({
++        name: 'checked',
++        value: str((el as HTMLInputElement).checked ? 'true' : 'false'),
++      })
++    }
++    if (role === 'heading') {
++      const level = parseInt(el.tagName.slice(1), 10)
++      if (level) {
++        properties.push({
++          name: 'level',
++          value: { type: 'integer' as Accessibility.AXValueType, value: level },
++        })
++      }
++    }
++
++    return properties
++  }
++}
++
++export function getFullAXTree(): Accessibility.GetFullAXTreeResponse {
++  return {
++    nodes: new Builder().build(),
++  }
++}
+diff --git a/src/lib/executionContext.ts b/src/lib/executionContext.ts
+new file mode 100644
+index 0000000..ee100a4
+--- /dev/null
++++ b/src/lib/executionContext.ts
+@@ -0,0 +1,45 @@
++import connector from './connector'
++import { MAIN_FRAME_ID } from './constants'
++
++// chobitsu has a single real JS global, so "isolated worlds" are faked: every
++// context maps to the same global. puppeteer only needs each world to have a
++// distinct id and an `executionContextCreated` event carrying `auxData.frameId`
++// so it can bind the world to the main frame. evaluate/callFunctionOn ignore the
++// context id and run in the real global, which is fine for snapshots/locators.
++
++let nextId = 1
++
++function makeAuxData(isDefault: boolean) {
++  return {
++    isDefault,
++    type: isDefault ? 'default' : 'isolated',
++    frameId: MAIN_FRAME_ID,
++  }
++}
++
++/** The default (main world) execution context. Emitted on `Runtime.enable`. */
++export const mainContext = {
++  id: nextId++,
++  name: 'top',
++  origin: location.origin,
++  uniqueId: 'wdmcp-ctx-1',
++  auxData: makeAuxData(true),
++}
++
++/**
++ * Allocates a fake isolated world and announces it via
++ * `Runtime.executionContextCreated`. Returns the new execution context id.
++ */
++export function createContext(name: string) {
++  const id = nextId++
++  connector.trigger('Runtime.executionContextCreated', {
++    context: {
++      id,
++      name,
++      origin: location.origin,
++      uniqueId: `wdmcp-ctx-${id}`,
++      auxData: makeAuxData(false),
++    },
++  })
++  return id
++}

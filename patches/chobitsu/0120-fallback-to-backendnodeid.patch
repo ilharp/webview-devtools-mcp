@@ -1,0 +1,22 @@
+fix: fallback to `backendNodeId`
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ src/domains/DOM.ts |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/domains/DOM.ts b/src/domains/DOM.ts
+index 92909dc..f8a90ce 100644
+--- a/src/domains/DOM.ts
++++ b/src/domains/DOM.ts
+@@ -271,7 +271,7 @@ export function requestNode(
+ export function resolveNode(
+   params: DOM.ResolveNodeRequest
+ ): DOM.ResolveNodeResponse {
+-  const node = getNode(params.nodeId as number)
++  const node = getNode((params.nodeId || params.backendNodeId) as number)
+ 
+   return {
+     object: objManager.wrap(node),

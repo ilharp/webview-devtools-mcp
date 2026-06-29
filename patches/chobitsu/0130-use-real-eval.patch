@@ -1,0 +1,69 @@
+refactor: use real eval
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ src/domains/Runtime.ts |   35 ++++++++---------------------------
+ 1 file changed, 8 insertions(+), 27 deletions(-)
+
+diff --git a/src/domains/Runtime.ts b/src/domains/Runtime.ts
+index a7ca7ac..b56a841 100644
+--- a/src/domains/Runtime.ts
++++ b/src/domains/Runtime.ts
+@@ -3,9 +3,7 @@ import each from 'licia/each'
+ import map from 'licia/map'
+ import now from 'licia/now'
+ import isStr from 'licia/isStr'
+-import fnParams from 'licia/fnParams'
+ import uncaught from 'licia/uncaught'
+-import startWith from 'licia/startWith'
+ import stackTrace from 'licia/stackTrace'
+ import trim from 'licia/trim'
+ import types from 'licia/types'
+@@ -163,37 +161,20 @@ function monitorConsole() {
+   })
+ }
+ 
+-const Function = window.Function
+-/* eslint-disable-next-line */
+-const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+-
+-function parseFn(fnStr: string) {
+-  const result = fnParams(fnStr)
+-
+-  if (fnStr[fnStr.length - 1] !== '}') {
+-    result.push('return ' + fnStr.slice(fnStr.indexOf('=>') + 2))
+-  } else {
+-    result.push(fnStr.slice(fnStr.indexOf('{') + 1, fnStr.lastIndexOf('}')))
+-  }
+-
+-  return result
+-}
++// Indirect eval, so the function source runs in global scope.
++const globalEval = eval
+ 
+ async function callFn(
+   functionDeclaration: string,
+   args: any[],
+   ctx: any = null
+ ) {
+-  const fnParams = parseFn(functionDeclaration)
+-  let fn
+-
+-  if (startWith(functionDeclaration, 'async')) {
+-    fn = AsyncFunction.apply(null, fnParams)
+-    return await fn.apply(ctx, args)
+-  }
+-
+-  fn = Function.apply(null, fnParams)
+-  return fn.apply(ctx, args)
++  // Evaluate the function source as an expression.
++  // This correctly handles arrow functions, destructured and
++  // rest params (e.g. `({ a, b }, ...args) => {}`) and the trailing
++  // `//# sourceURL=` comment puppeteer appends.
++  const fn = globalEval(`(${functionDeclaration}\n)`)
++  return await fn.apply(ctx, args)
+ }
+ 
+ uncaught.addListener(err => {
