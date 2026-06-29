@@ -31,6 +31,7 @@ Files **added** by our patches (not upstream files) are owned by this project â€
 
 ```sh
 yarn --immutable
+yarn workspace @wdmcp/server build
 yarn workspace chobitsu build
 yarn workspace chii gulp clean
 yarn workspace chii webpack --mode=production
