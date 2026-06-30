@@ -4,12 +4,12 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/domains/DOM.ts     |   15 +++++++++++++++
- src/domains/Page.ts    |   44 +++++++++++++++++++++++++++++++++++++++++++-
- src/domains/Runtime.ts |   11 +++--------
- src/index.ts           |    9 +++++++++
- src/lib/constants.ts   |    1 +
- 5 files changed, 71 insertions(+), 9 deletions(-)
+ src/domains/DOM.ts     |   15 ++++++
+ src/domains/Page.ts    |  122 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/domains/Runtime.ts |   11 +---
+ src/index.ts           |   10 ++++
+ src/lib/constants.ts   |    1 
+ 5 files changed, 150 insertions(+), 9 deletions(-)
 
 diff --git a/src/domains/DOM.ts b/src/domains/DOM.ts
 index 618798e..92909dc 100644
@@ -38,7 +38,7 @@ index 618798e..92909dc 100644
    const { name, text, nodeId } = params
  
 diff --git a/src/domains/Page.ts b/src/domains/Page.ts
-index 45c1752..472161d 100644
+index 45c1752..da12dab 100644
 --- a/src/domains/Page.ts
 +++ b/src/domains/Page.ts
 @@ -5,7 +5,7 @@ import now from 'licia/now'
@@ -106,6 +106,88 @@ index 45c1752..472161d 100644
  export function reload() {
    location.reload()
  }
+@@ -242,3 +284,81 @@ async function captureScreenshot() {
+ 
+   isCapturingScreenshot = false
+ }
++
++// puppeteer's page.screenshot() issues Page.captureScreenshot. chobitsu has no
++// real surface capture, so render the DOM with html2canvas (the same approach
++// the screencast above uses) and honour the requested format/quality/clip.
++// Registered as the `captureScreenshot` method in index.ts to avoid colliding
++// with the private screencast helper of the same name.
++export async function capturePageScreenshot(
++  params: Page.CaptureScreenshotRequest
++): Promise<Page.CaptureScreenshotResponse> {
++  const { format = 'png', quality, clip, captureBeyondViewport } = params
++
++  const options: Partial<html2canvasOptions> = {
++    imageTimeout: 5000,
++    scale: 1,
++    logging: false,
++    ignoreElements(node) {
++      return !isValidNode(node)
++    },
++  }
++  if (proxy) {
++    options.proxy = proxy
++  } else {
++    options.foreignObjectRendering = true
++    options.useCORS = true
++  }
++
++  const canvas = await html2canvas(document.body, options)
++
++  // html2canvas renders the whole body at 1 canvas px per CSS px, in document
++  // coordinates. A CDP clip is already in those coordinates, so use it as-is.
++  // Without a clip, captureBeyondViewport (puppeteer's fullPage path) means
++  // "the whole page"; otherwise only the visible viewport is expected.
++  const region: Page.Viewport = clip || {
++    x: captureBeyondViewport ? 0 : window.scrollX,
++    y: captureBeyondViewport ? 0 : window.scrollY,
++    width: captureBeyondViewport ? canvas.width : window.innerWidth,
++    height: captureBeyondViewport ? canvas.height : window.innerHeight,
++    scale: 1,
++  }
++
++  const mimeType =
++    format === 'jpeg'
++      ? 'image/jpeg'
++      : format === 'webp'
++        ? 'image/webp'
++        : 'image/png'
++
++  const data = cropCanvas(canvas, region)
++    .toDataURL(mimeType, quality === undefined ? undefined : quality / 100)
++    .replace(/^data:image\/\w+;base64,/, '')
++
++  return { data }
++}
++
++function cropCanvas(
++  source: HTMLCanvasElement,
++  region: Page.Viewport
++): HTMLCanvasElement {
++  const scale = region.scale || 1
++  const canvas = document.createElement('canvas')
++  canvas.width = Math.max(1, Math.round(region.width * scale))
++  canvas.height = Math.max(1, Math.round(region.height * scale))
++  const ctx = canvas.getContext('2d')
++  if (ctx) {
++    ctx.drawImage(
++      source,
++      region.x,
++      region.y,
++      region.width,
++      region.height,
++      0,
++      0,
++      canvas.width,
++      canvas.height
++    )
++  }
++  return canvas
++}
 diff --git a/src/domains/Runtime.ts b/src/domains/Runtime.ts
 index beaee5d..a7ca7ac 100644
 --- a/src/domains/Runtime.ts
@@ -145,10 +227,10 @@ index beaee5d..a7ca7ac 100644
        })
      }
 diff --git a/src/index.ts b/src/index.ts
-index 1dd6e97..a72bdcf 100644
+index 1dd6e97..f7310b6 100644
 --- a/src/index.ts
 +++ b/src/index.ts
-@@ -16,12 +16,14 @@ import * as Storage from './domains/Storage'
+@@ -16,15 +16,18 @@ import * as Storage from './domains/Storage'
  import * as CacheStorage from './domains/CacheStorage'
  import * as IndexedDB from './domains/IndexedDB'
  import * as Input from './domains/Input'
@@ -163,7 +245,11 @@ index 1dd6e97..a72bdcf 100644
  })
  chobitsu.register('Page', {
    ...Page,
-@@ -79,6 +81,9 @@ chobitsu.register('Overlay', {
++  captureScreenshot: Page.capturePageScreenshot,
+   getManifestIcons: noop,
+   bringToFront: noop,
+   getInstallabilityErrors: noop,
+@@ -79,6 +82,9 @@ chobitsu.register('Overlay', {
  chobitsu.register('Profiler', {
    enable: noop,
  })
@@ -173,7 +259,7 @@ index 1dd6e97..a72bdcf 100644
  chobitsu.register('Log', {
    clear: noop,
    enable: noop,
-@@ -149,5 +154,9 @@ chobitsu.register('Input', {
+@@ -149,5 +155,9 @@ chobitsu.register('Input', {
  chobitsu.register('Autofill', {
    enable: noop,
  })

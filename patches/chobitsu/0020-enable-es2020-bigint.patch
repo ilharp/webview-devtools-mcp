@@ -1,0 +1,22 @@
+chore: enable `ES2020.BigInt`
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ tsconfig.json |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tsconfig.json b/tsconfig.json
+index 883a7bc..940c136 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -11,7 +11,7 @@
+     "target": "ES5",
+     "declaration": true,
+     "esModuleInterop": true,
+-    "lib": ["DOM", "ES2015"]
++    "lib": ["DOM", "ES2015", "ES2020.BigInt"]
+   },
+   "include": ["src/**/*"]
+ }

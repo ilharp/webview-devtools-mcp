@@ -4,14 +4,14 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/domains/Runtime.ts |   35 ++++++++---------------------------
- 1 file changed, 8 insertions(+), 27 deletions(-)
+ src/domains/Runtime.ts |  107 +++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 78 insertions(+), 29 deletions(-)
 
 diff --git a/src/domains/Runtime.ts b/src/domains/Runtime.ts
-index a7ca7ac..b56a841 100644
+index a7ca7ac..0bd7762 100644
 --- a/src/domains/Runtime.ts
 +++ b/src/domains/Runtime.ts
-@@ -3,9 +3,7 @@ import each from 'licia/each'
+@@ -3,31 +3,32 @@ import each from 'licia/each'
  import map from 'licia/map'
  import now from 'licia/now'
  import isStr from 'licia/isStr'
@@ -21,7 +21,63 @@ index a7ca7ac..b56a841 100644
  import stackTrace from 'licia/stackTrace'
  import trim from 'licia/trim'
  import types from 'licia/types'
-@@ -163,37 +161,20 @@ function monitorConsole() {
+ import * as objManager from '../lib/objManager'
+ import { evalJs, evalJsAsync, setGlobal } from '../lib/evaluate'
+ import Protocol from 'devtools-protocol'
+-import { getTimestamp } from '../lib/util'
++import { getTimestamp, createErr } from '../lib/util'
+ import { mainContext } from '../lib/executionContext'
+ import Runtime = Protocol.Runtime
+ 
+ export async function callFunctionOn(
+   params: Runtime.CallFunctionOnRequest
+ ): Promise<Runtime.CallFunctionOnResponse> {
+-  const { functionDeclaration, objectId } = params
++  const { functionDeclaration, objectId, returnByValue } = params
+   let args = params.arguments || []
+ 
+   args = map(args, (arg: any) => {
+-    const { objectId, value } = arg
++    const { objectId, unserializableValue, value } = arg
+     if (objectId) {
+       const obj = objManager.getObj(objectId)
+       if (obj) return obj
+     }
++    if (unserializableValue !== undefined) {
++      return parseUnserializable(unserializableValue)
++    }
+ 
+     return value
+   })
+@@ -35,10 +36,25 @@ export async function callFunctionOn(
+   let ctx = null
+   if (objectId) {
+     ctx = objManager.getObj(objectId)
++    if (!ctx) {
++      throw createErr(-32000, 'Could not find object with given id')
++    }
+   }
+ 
+-  return {
+-    result: objManager.wrap(await callFn(functionDeclaration, args, ctx)),
++  try {
++    const result = await callFn(functionDeclaration, args, ctx)
++    return {
++      result: returnByValue ? wrapByValue(result) : objManager.wrap(result),
++    }
++  } catch (e) {
++    const ret: any = {
++      result: objManager.wrap(e),
++      exceptionDetails: {
++        exception: objManager.wrap(e),
++        text: 'Uncaught',
++      },
++    }
++    return ret
+   }
+ }
+ 
+@@ -163,37 +179,70 @@ function monitorConsole() {
    })
  }
  
@@ -50,20 +106,67 @@ index a7ca7ac..b56a841 100644
  ) {
 -  const fnParams = parseFn(functionDeclaration)
 -  let fn
--
--  if (startWith(functionDeclaration, 'async')) {
--    fn = AsyncFunction.apply(null, fnParams)
--    return await fn.apply(ctx, args)
--  }
--
--  fn = Function.apply(null, fnParams)
--  return fn.apply(ctx, args)
 +  // Evaluate the function source as an expression.
 +  // This correctly handles arrow functions, destructured and
 +  // rest params (e.g. `({ a, b }, ...args) => {}`) and the trailing
 +  // `//# sourceURL=` comment puppeteer appends.
 +  const fn = globalEval(`(${functionDeclaration}\n)`)
 +  return await fn.apply(ctx, args)
++}
++
++// Reconstruct a CallArgument's unserializableValue (NaN / ±Infinity / -0).
++function parseUnserializable(value: string) {
++  switch (value) {
++    case 'NaN':
++      return NaN
++    case 'Infinity':
++      return Infinity
++    case '-Infinity':
++      return -Infinity
++    case '-0':
++      return -0
++  }
++  if (/^-?\d+n$/.test(value) && typeof BigInt !== 'undefined') {
++    return BigInt(value.slice(0, -1))
++  }
++
++  return undefined
++}
+ 
+-  if (startWith(functionDeclaration, 'async')) {
+-    fn = AsyncFunction.apply(null, fnParams)
+-    return await fn.apply(ctx, args)
++// Build a by-value RemoteObject for `returnByValue: true`. The result must not
++// carry an objectId (puppeteer asserts on that), so primitives are inlined and
++// objects are handed back as a plain JSON value the connector can serialize.
++function wrapByValue(value: any): any {
++  const type = typeof value
++
++  if (type === 'bigint') {
++    return { type, unserializableValue: `${value}n` }
++  }
++  if (type === 'number') {
++    if (isNaN(value)) return { type, unserializableValue: 'NaN' }
++    if (value === Infinity) return { type, unserializableValue: 'Infinity' }
++    if (value === -Infinity) return { type, unserializableValue: '-Infinity' }
++    if (value === 0 && 1 / value === -Infinity) {
++      return { type, unserializableValue: '-0' }
++    }
++    return { type, value }
++  }
++  if (value === null) {
++    return { type: 'object', subtype: 'null', value: null }
++  }
++  if (type === 'string' || type === 'boolean') {
++    return { type, value }
++  }
++  if (type === 'undefined' || type === 'function' || type === 'symbol') {
++    return { type }
+   }
+ 
+-  fn = Function.apply(null, fnParams)
+-  return fn.apply(ctx, args)
++  return { type: 'object', value: JSON.parse(JSON.stringify(value)) }
  }
  
  uncaught.addListener(err => {

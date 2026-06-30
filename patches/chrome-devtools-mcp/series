@@ -1,4 +1,4 @@
-# This series applies on Git commit e5bd334c97b4f25207cad586684cca8208f1657e
+# This series applies on Git commit 5d7b6560504009cd1a16cc02db7e985cf7f71274
 0001-add-install-config.patch
 0003-add-deps.patch
 0005-temporarily-upgrade-puppeteer.patch
