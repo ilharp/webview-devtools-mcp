@@ -1,7 +1,6 @@
-# This series applies on Git commit 5d7b6560504009cd1a16cc02db7e985cf7f71274
+# This series applies on Git commit 8d8cf1299db9d9f371c1f278ccc3e598df22c615
 0001-add-install-config.patch
 0003-add-deps.patch
-0005-temporarily-upgrade-puppeteer.patch
 0010-ignore-license-check.patch
 0100-enable-autoconnect.patch
 0200-add-wdmcp.patch
