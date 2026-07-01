@@ -4,10 +4,12 @@ import { router } from './router'
 import type { WdmcpServerOptions } from './types'
 import { WebSocketServer } from './WebSocketServer'
 
+export type * from './types'
+
 export const start = (options: WdmcpServerOptions) => {
   let { port = 8080, host, domain, server, basePath = '/', log } = options
 
-  domain = domain || 'localhost:' + port
+  domain = domain || `localhost:${port}`
 
   if (!basePath.endsWith('/')) {
     basePath += '/'

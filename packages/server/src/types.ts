@@ -1,6 +1,7 @@
 import type { Server } from 'node:http'
 import type { WebSocket } from 'ws'
 import type { Channel } from './Channel'
+import type { WebSocketServer } from './WebSocketServer'
 
 export interface WdmcpServerOptions {
   port?: number
@@ -9,6 +10,10 @@ export interface WdmcpServerOptions {
   server?: Server
   basePath?: string
   log: (...args: unknown[]) => void
+}
+
+export interface ChiiCtx {
+  wss: WebSocketServer
 }
 
 export interface ChiiTarget {

@@ -5,12 +5,12 @@ From: Il Harper <hi@ilharper.com>
 
 ---
  src/third_party/index.ts |    4 
- src/wdmcp.ts             |  651 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 655 insertions(+)
+ src/wdmcp.ts             |  649 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 653 insertions(+)
  create mode 100644 src/wdmcp.ts
 
 diff --git a/src/third_party/index.ts b/src/third_party/index.ts
-index 222f149..2e6fb55 100644
+index 222f149..d39f7d9 100644
 --- a/src/third_party/index.ts
 +++ b/src/third_party/index.ts
 @@ -83,3 +83,7 @@ export const generateReport = generateReportImpl as (
@@ -19,14 +19,14 @@ index 222f149..2e6fb55 100644
  export * as DevTools from '../../node_modules/chrome-devtools-frontend/mcp/mcp.js';
 +
 +export * as chii from '@wdmcp/server';
-+import type {ChiiTarget} from '../../../server/lib/types.js';
-+export type {ChiiTarget};
++import type {ChiiCtx, ChiiTarget} from '@wdmcp/server';
++export type {ChiiCtx, ChiiTarget};
 diff --git a/src/wdmcp.ts b/src/wdmcp.ts
 new file mode 100644
-index 0000000..2cfa43b
+index 0000000..08d56f5
 --- /dev/null
 +++ b/src/wdmcp.ts
-@@ -0,0 +1,651 @@
+@@ -0,0 +1,649 @@
 +/* eslint-disable @local/check-license */
 +
 +import {EventEmitter} from 'node:events';
@@ -35,12 +35,10 @@ index 0000000..2cfa43b
 +import type {WebSocket} from 'ws';
 +
 +import {logger} from './logger.js';
-+import type {ChiiTarget} from './third_party/index.js';
++import type {ChiiCtx, ChiiTarget} from './third_party/index.js';
 +import {chii} from './third_party/index.js';
 +
 +const {start} = chii;
-+
-+type ChiiCtx = Awaited<ReturnType<typeof start>>;
 +
 +const CHII_PORT = 9333;
 +const CHII_CLIENT_PREFIX = 'wdmcp_client_';
@@ -96,7 +94,7 @@ index 0000000..2cfa43b
 +   * Send a message to chii client. Called by pptr.
 +   */
 +  send = (message: string): void => {
-+    logger?.(`[wdmcp] [pptr->chii] ${message}`);
++    logger?.(`[wdmcp] [->chii] ${message}`);
 +    this.onPptrToChiiMessage(message);
 +  };
 +
@@ -104,7 +102,7 @@ index 0000000..2cfa43b
 +   * Called by pptr.
 +   */
 +  close = (): void => {
-+    logger?.(`[wdmcp] [pptr->chii] close`);
++    logger?.(`[wdmcp] [->chii] close`);
 +    this.onPptrToChiiClose();
 +  };
 +
@@ -119,12 +117,12 @@ index 0000000..2cfa43b
 +  onclose?: (() => void) | undefined;
 +
 +  sendMessageToPptr = (message: string) => {
-+    logger?.(`[wdmcp] [chii->pptr] ${message}`);
++    logger?.(`[wdmcp] [->pptr] ${message}`);
 +    this.onmessage?.(message);
 +  };
 +
 +  closePptr = () => {
-+    logger?.(`[wdmcp] [chii->pptr] close`);
++    logger?.(`[wdmcp] [->pptr] close`);
 +    this.onclose?.();
 +  };
 +}
@@ -244,7 +242,7 @@ index 0000000..2cfa43b
 +        }
 +        reject(
 +          new Error(
-+            `No webview connected to ws://127.0.0.1:${CHII_PORT} within ${timeoutMs}ms. Open your webview (inject chii target.js) and retry.`,
++            `No webview connected to ws://127.0.0.1:${CHII_PORT} within ${timeoutMs}ms. Open your webview (inject target.js) and retry.`,
 +          ),
 +        );
 +      }, timeoutMs);
@@ -252,9 +250,7 @@ index 0000000..2cfa43b
 +    });
 +  };
 +
-+  // ---------------------------------------------------------------------------
-+  // chii target lifecycle
-+  // ---------------------------------------------------------------------------
++  // #region chii target lifecycle
 +
 +  #onTargetChanged = () => {
 +    const targets = this.chiiCtx.wss.channelManager.getTargets() as Record<
@@ -341,9 +337,9 @@ index 0000000..2cfa43b
 +    }
 +  };
 +
-+  // ---------------------------------------------------------------------------
-+  // chobitsu -> puppeteer
-+  // ---------------------------------------------------------------------------
++  // #endregion
++
++  // #region chobitsu -> puppeteer
 +
 +  #onChiiToPptr = (targetId: string, raw: string) => {
 +    let msg: CdpMessage;
@@ -375,9 +371,9 @@ index 0000000..2cfa43b
 +    }
 +  };
 +
-+  // ---------------------------------------------------------------------------
-+  // puppeteer -> multiplexer
-+  // ---------------------------------------------------------------------------
++  // #endregion
++
++  // #region puppeteer -> multiplexer
 +
 +  #onPptrMessage = (raw: string) => {
 +    let msg: CdpMessage;
@@ -611,9 +607,9 @@ index 0000000..2cfa43b
 +    // done here yet (the server is shared / owns the static target.js route).
 +  };
 +
-+  // ---------------------------------------------------------------------------
-+  // helpers
-+  // ---------------------------------------------------------------------------
++  // #endregion
++
++  // #region helpers
 +
 +  #targetInfo = (
 +    targetId: string,
@@ -677,4 +673,6 @@ index 0000000..2cfa43b
 +  #sendToPptr = (msg: CdpMessage | Record<string, unknown>) => {
 +    this.transport.sendMessageToPptr(JSON.stringify(msg));
 +  };
++
++  // #endregion
 +}
