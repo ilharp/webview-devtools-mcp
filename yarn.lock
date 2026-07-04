@@ -5547,10 +5547,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chrome-devtools-frontend@npm:1.0.1650035":
-  version: 1.0.1650035
-  resolution: "chrome-devtools-frontend@npm:1.0.1650035"
-  checksum: 10c0/636f33dffb2f22af8bea2f4d98b1f6f18b9b55d297ef880331bf08b9e12ae94b8813e053a64ec70fa14133fe4f0dce7bb9a5b91dbe436226206e743ddb5bdd1d
+"chrome-devtools-frontend@npm:1.0.1652307":
+  version: 1.0.1652307
+  resolution: "chrome-devtools-frontend@npm:1.0.1652307"
+  checksum: 10c0/edc6f99569e044a803dc3f3a5d17dedc3a4c159e6eb919de5687184fc071da9ac09ecfc5f0b50b6be5479a95568722b81ec9c01e4ba1ae61bfd73bfa3ea42553
   languageName: node
   linkType: hard
 
@@ -5575,7 +5575,7 @@ __metadata:
     "@typescript-eslint/eslint-plugin": "npm:^8.43.0"
     "@typescript-eslint/parser": "npm:^8.43.0"
     "@wdmcp/server": "workspace:^"
-    chrome-devtools-frontend: "npm:1.0.1650035"
+    chrome-devtools-frontend: "npm:1.0.1652307"
     core-js: "npm:3.49.0"
     debug: "npm:4.4.3"
     eslint: "npm:^9.35.0"
