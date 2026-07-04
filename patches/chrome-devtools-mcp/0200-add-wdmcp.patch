@@ -5,8 +5,8 @@ From: Il Harper <hi@ilharper.com>
 
 ---
  src/third_party/index.ts |    4 
- src/wdmcp.ts             |  649 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 653 insertions(+)
+ src/wdmcp.ts             |  650 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 654 insertions(+)
  create mode 100644 src/wdmcp.ts
 
 diff --git a/src/third_party/index.ts b/src/third_party/index.ts
@@ -23,10 +23,10 @@ index 222f149..d39f7d9 100644
 +export type {ChiiCtx, ChiiTarget};
 diff --git a/src/wdmcp.ts b/src/wdmcp.ts
 new file mode 100644
-index 0000000..08d56f5
+index 0000000..24fa45a
 --- /dev/null
 +++ b/src/wdmcp.ts
-@@ -0,0 +1,649 @@
+@@ -0,0 +1,650 @@
 +/* eslint-disable @local/check-license */
 +
 +import {EventEmitter} from 'node:events';
@@ -182,10 +182,6 @@ index 0000000..08d56f5
 +  /** Resolvers waiting for the first webview to connect. */
 +  #firstTargetWaiters: Array<() => void> = [];
 +
-+  /**
-+   * The puppeteer-facing transport. Field initializers run before the
-+   * constructor body, but the wrappers defer to call time so order is moot.
-+   */
 +  transport = new WebviewDevtoolsMcpTransport(
 +    (message: string) => {
 +      this.#onPptrMessage(message);
@@ -323,7 +319,7 @@ index 0000000..08d56f5
 +    const sessions = this.#targetSessions.get(targetId);
 +    if (sessions) {
 +      for (const sessionId of [...sessions]) {
-+        this.#dropSession(sessionId, /* emitDetached */ true);
++        this.#dropSession(sessionId);
 +      }
 +    }
 +
@@ -426,9 +422,10 @@ index 0000000..08d56f5
 +    const {id, method} = msg;
 +
 +    switch (method) {
-+      case 'Target.getBrowserContexts':
++      case 'Target.getBrowserContexts': {
 +        this.#reply(id, {browserContextIds: []});
 +        return;
++      }
 +
 +      case 'Target.setDiscoverTargets': {
 +        this.#discovering = true;
@@ -460,9 +457,10 @@ index 0000000..08d56f5
 +      }
 +
 +      case 'Target.setRemoteLocations':
-+      case 'Security.setIgnoreCertificateErrors':
++      case 'Security.setIgnoreCertificateErrors': {
 +        this.#reply(id, {});
 +        return;
++      }
 +
 +      case 'Target.getTargets': {
 +        const targetInfos = [...this.#targets].map(([targetId, entry]) => {
@@ -476,21 +474,22 @@ index 0000000..08d56f5
 +        return;
 +      }
 +
-+      case 'Target.attachToTarget':
++      case 'Target.attachToTarget': {
 +        this.#attachToTarget(msg);
 +        return;
++      }
 +
 +      case 'Target.detachFromTarget': {
 +        const sessionId = (msg.params as {sessionId?: string} | undefined)
 +          ?.sessionId;
 +        if (sessionId) {
-+          this.#dropSession(sessionId, /* emitDetached */ true);
++          this.#dropSession(sessionId);
 +        }
 +        this.#reply(id, {});
 +        return;
 +      }
 +
-+      case 'Browser.getVersion':
++      case 'Browser.getVersion': {
 +        this.#reply(id, {
 +          protocolVersion: '1.3',
 +          product: 'Chrome/200.0.0.0',
@@ -499,20 +498,23 @@ index 0000000..08d56f5
 +          jsVersion: '',
 +        });
 +        return;
++      }
 +
-+      case 'Browser.close':
++      case 'Browser.close': {
 +        this.#reply(id, {});
 +        return;
++      }
 +
-+      case 'Target.createTarget':
++      case 'Target.createTarget': {
 +        this.#replyError(
 +          id,
 +          -32000,
 +          'Creating pages is not supported for webview targets',
 +        );
 +        return;
++      }
 +
-+      default:
++      default: {
 +        // Be lenient so an unanticipated browser-level call cannot stall the
 +        // handshake. Session-level traffic never reaches here.
 +        if (method) {
@@ -520,6 +522,7 @@ index 0000000..08d56f5
 +        }
 +        this.#reply(id, {});
 +        return;
++      }
 +    }
 +  };
 +
@@ -578,7 +581,7 @@ index 0000000..08d56f5
 +    this.#reply(msg.id, {sessionId});
 +  };
 +
-+  #dropSession = (sessionId: string, emitDetached: boolean) => {
++  #dropSession = (sessionId: string) => {
 +    const targetId = this.#sessionToTarget.get(sessionId);
 +    this.#sessionToTarget.delete(sessionId);
 +    if (targetId) {
@@ -594,12 +597,10 @@ index 0000000..08d56f5
 +        this.#pendingId.delete(pid);
 +      }
 +    }
-+    if (emitDetached) {
-+      this.#sendToPptr({
-+        method: 'Target.detachedFromTarget',
-+        params: {sessionId},
-+      });
-+    }
++    this.#sendToPptr({
++      method: 'Target.detachedFromTarget',
++      params: {sessionId},
++    });
 +  };
 +
 +  #onPptrToChiiClose = () => {
