@@ -2,6 +2,6 @@
 0001-add-install-config.patch
 0003-add-deps.patch
 0010-ignore-license-check.patch
-0100-enable-autoconnect.patch
+0100-modify-cli-args.patch
 0200-add-wdmcp.patch
 0210-inject-wdmcp.patch
