@@ -4,14 +4,51 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/browser.ts |   22 ++++++++++++++++++++--
- 1 file changed, 20 insertions(+), 2 deletions(-)
+ src/bin/chrome-devtools.ts |   12 -------
+ src/browser.ts             |   78 +++++++++-----------------------------------
+ src/index.ts               |   50 +++++-----------------------
+ 3 files changed, 24 insertions(+), 116 deletions(-)
 
+diff --git a/src/bin/chrome-devtools.ts b/src/bin/chrome-devtools.ts
+index 30677ed..c0b3b34 100644
+--- a/src/bin/chrome-devtools.ts
++++ b/src/bin/chrome-devtools.ts
+@@ -43,22 +43,10 @@ const startCliOptions = {
+   ...cliOptions,
+ } as Partial<typeof cliOptions>;
+ 
+-// Missing CLI serialization.
+-delete startCliOptions.viewport;
+-
+ // Change the defaults for the CLI.
+ delete startCliOptions.experimentalStructuredContent;
+ delete startCliOptions.experimentalInteropTools;
+ delete startCliOptions.experimentalPageIdRouting;
+-if (!('default' in cliOptions.headless)) {
+-  throw new Error('headless cli option unexpectedly does not have a default');
+-}
+-if ('default' in cliOptions.isolated) {
+-  throw new Error('isolated cli option unexpectedly has a default');
+-}
+-startCliOptions.headless!.default = true;
+-startCliOptions.isolated!.description =
+-  'If specified, creates a temporary user-data-dir that is automatically cleaned up after the browser is closed. Defaults to true unless userDataDir is provided.';
+ startCliOptions.categoryExtensions!.default = true;
+ 
+ const y = yargs(hideBin(process.argv))
 diff --git a/src/browser.ts b/src/browser.ts
-index 6b077ad..35b573d 100644
+index 6b077ad..96bff07 100644
 --- a/src/browser.ts
 +++ b/src/browser.ts
-@@ -17,6 +17,7 @@ import type {
+@@ -9,6 +9,7 @@ import fs from 'node:fs';
+ import os from 'node:os';
+ import path from 'node:path';
+ 
++import type {parseArguments} from './bin/chrome-devtools-mcp-cli-options.js';
+ import {logger} from './logger.js';
+ import type {
+   Browser,
+@@ -17,6 +18,7 @@ import type {
    Target,
  } from './third_party/index.js';
  import {puppeteer} from './third_party/index.js';
@@ -19,33 +56,107 @@ index 6b077ad..35b573d 100644
  
  let browser: Browser | undefined;
  let browserMode: 'launched' | 'connected' | undefined;
-@@ -123,12 +124,23 @@ export async function ensureBrowserConnected(options: {
-     );
+@@ -45,84 +47,30 @@ function makeTargetFilter(enableExtensions = false) {
+ }
+ 
+ export async function ensureBrowserConnected(options: {
+-  browserURL?: string;
+-  wsEndpoint?: string;
+-  wsHeaders?: Record<string, string>;
++  serverArgs: ReturnType<typeof parseArguments>;
+   devtools: boolean;
+-  channel?: Channel;
+-  userDataDir?: string;
+   enableExtensions?: boolean;
+   blocklist?: string[];
+   allowlist?: string[];
+ }) {
+-  const {channel, enableExtensions} = options;
++  const {serverArgs, enableExtensions} = options;
+   if (browser?.connected) {
+     return browser;
    }
  
--  logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions));
-+  const wdmcp = await WebviewDevtoolsMcpContext.create();
++  const wdmcp = await WebviewDevtoolsMcpContext.create({
++    serverArgs,
++  });
 +
-+  const connectOptions2: Parameters<typeof puppeteer.connect>[0] = {
-+    targetFilter: makeTargetFilter(enableExtensions),
-+    defaultViewport: null,
-+    handleDevToolsAsPage: true,
-+    blocklist: options.blocklist,
-+    allowlist: options.allowlist,
+   const connectOptions: Parameters<typeof puppeteer.connect>[0] = {
+     targetFilter: makeTargetFilter(enableExtensions),
+     defaultViewport: null,
+     handleDevToolsAsPage: true,
+     blocklist: options.blocklist,
+     allowlist: options.allowlist,
 +    transport: wdmcp.transport,
-+  };
-+
-+  logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions2));
+   };
+ 
+-  let autoConnect = false;
+-  if (options.wsEndpoint) {
+-    connectOptions.browserWSEndpoint = options.wsEndpoint;
+-    if (options.wsHeaders) {
+-      connectOptions.headers = options.wsHeaders;
+-    }
+-  } else if (options.browserURL) {
+-    connectOptions.browserURL = options.browserURL;
+-  } else if (channel || options.userDataDir) {
+-    const userDataDir = options.userDataDir;
+-    if (userDataDir) {
+-      autoConnect = true;
+-      // TODO: re-expose this logic via Puppeteer.
+-      const portPath = path.join(userDataDir, 'DevToolsActivePort');
+-      try {
+-        const fileContent = await fs.promises.readFile(portPath, 'utf8');
+-        const [rawPort, rawPath] = fileContent
+-          .split('\n')
+-          .map(line => {
+-            return line.trim();
+-          })
+-          .filter(line => {
+-            return !!line;
+-          });
+-        if (!rawPort || !rawPath) {
+-          throw new Error(`Invalid DevToolsActivePort '${fileContent}' found`);
+-        }
+-        const port = parseInt(rawPort, 10);
+-        if (isNaN(port) || port <= 0 || port > 65535) {
+-          throw new Error(`Invalid port '${rawPort}' found`);
+-        }
+-        const browserWSEndpoint = `ws://127.0.0.1:${port}${rawPath}`;
+-        connectOptions.browserWSEndpoint = browserWSEndpoint;
+-      } catch (error) {
+-        throw new Error(
+-          `Could not connect to Chrome in ${userDataDir}. Check if Chrome is running and remote debugging is enabled by going to chrome://inspect/#remote-debugging.`,
+-          {
+-            cause: error,
+-          },
+-        );
+-      }
+-    } else {
+-      if (!channel) {
+-        throw new Error('Channel must be provided if userDataDir is missing');
+-      }
+-      connectOptions.channel = (
+-        channel === 'stable' ? 'chrome' : `chrome-${channel}`
+-      ) as ChromeReleaseChannel;
+-    }
+-  } else {
+-    throw new Error(
+-      'Either browserURL, wsEndpoint, channel or userDataDir must be provided',
+-    );
+-  }
+-
+   logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions));
    try {
      // Assign mode before browser so a concurrent closeBrowser() never sees
-     // `browser` set with `browserMode` still undefined (would fall through
-     // to the disconnect() path and orphan a launched Chrome).
--    const connected = await puppeteer.connect(connectOptions);
-+    const connected = await puppeteer.connect(connectOptions2);
-     browserMode = 'connected';
+@@ -133,13 +81,19 @@ export async function ensureBrowserConnected(options: {
      browser = connected;
    } catch (err) {
-@@ -140,6 +152,12 @@ export async function ensureBrowserConnected(options: {
+     throw new Error(
+-      `Could not connect to Chrome. ${autoConnect ? `Check if Chrome is running and remote debugging is enabled by going to chrome://inspect/#remote-debugging.` : `Check if Chrome is running.`}`,
++      `Could not connect to puppeteer. This is likely a webview-devtools-mcp internal error.`,
+       {
+         cause: err,
+       },
      );
    }
    logger?.('Connected Puppeteer');
@@ -58,3 +169,85 @@ index 6b077ad..35b573d 100644
    return browser;
  }
  
+diff --git a/src/index.ts b/src/index.ts
+index 8270a5c..469f009 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -7,8 +7,7 @@
+ import type fs from 'node:fs';
+ 
+ import type {parseArguments} from './bin/chrome-devtools-mcp-cli-options.js';
+-import type {Channel} from './browser.js';
+-import {ensureBrowserConnected, ensureBrowserLaunched} from './browser.js';
++import {ensureBrowserConnected} from './browser.js';
+ import {loadIssueDescriptions} from './issue-descriptions.js';
+ import {logger} from './logger.js';
+ import {McpContext} from './McpContext.js';
+@@ -31,7 +30,7 @@ export {buildFlag} from './ToolHandler.js';
+ 
+ export async function createMcpServer(
+   serverArgs: ReturnType<typeof parseArguments>,
+-  options: {
++  _options: {
+     logFile?: fs.WriteStream;
+   },
+ ) {
+@@ -91,13 +90,6 @@ export async function createMcpServer(
+ 
+   let context: McpContext;
+   async function getContext(): Promise<McpContext> {
+-    const chromeArgs: string[] = (serverArgs.chromeArg ?? []).map(String);
+-    const ignoreDefaultChromeArgs: string[] = (
+-      serverArgs.ignoreDefaultChromeArg ?? []
+-    ).map(String);
+-    if (serverArgs.proxyServer) {
+-      chromeArgs.push(`--proxy-server=${serverArgs.proxyServer}`);
+-    }
+     const devtools = serverArgs.experimentalDevtools ?? false;
+     const blocklist = serverArgs.blockedUrlPattern
+       ? serverArgs.blockedUrlPattern.map(String)
+@@ -106,38 +98,12 @@ export async function createMcpServer(
+       ? serverArgs.allowedUrlPattern.map(String)
+       : undefined;
+ 
+-    const browser =
+-      serverArgs.browserUrl || serverArgs.wsEndpoint || serverArgs.autoConnect
+-        ? await ensureBrowserConnected({
+-            browserURL: serverArgs.browserUrl,
+-            wsEndpoint: serverArgs.wsEndpoint,
+-            wsHeaders: serverArgs.wsHeaders,
+-            // Important: only pass channel, if autoConnect is true.
+-            channel: serverArgs.autoConnect
+-              ? (serverArgs.channel as Channel)
+-              : undefined,
+-            userDataDir: serverArgs.userDataDir,
+-            devtools,
+-            blocklist,
+-            allowlist,
+-          })
+-        : await ensureBrowserLaunched({
+-            headless: serverArgs.headless,
+-            executablePath: serverArgs.executablePath,
+-            channel: serverArgs.channel as Channel,
+-            isolated: serverArgs.isolated ?? false,
+-            userDataDir: serverArgs.userDataDir,
+-            logFile: options.logFile,
+-            viewport: serverArgs.viewport,
+-            chromeArgs,
+-            ignoreDefaultChromeArgs,
+-            acceptInsecureCerts: serverArgs.acceptInsecureCerts,
+-            devtools,
+-            enableExtensions: serverArgs.categoryExtensions,
+-            viaCli: serverArgs.viaCli,
+-            blocklist,
+-            allowlist,
+-          });
++    const browser = await ensureBrowserConnected({
++      serverArgs,
++      devtools,
++      blocklist,
++      allowlist,
++    });
+ 
+     if (context?.browser !== browser) {
+       context = await McpContext.from(browser, logger, {

@@ -5,8 +5,8 @@ From: Il Harper <hi@ilharper.com>
 
 ---
  src/third_party/index.ts |    4 
- src/wdmcp.ts             |  650 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 654 insertions(+)
+ src/wdmcp.ts             |  655 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 659 insertions(+)
  create mode 100644 src/wdmcp.ts
 
 diff --git a/src/third_party/index.ts b/src/third_party/index.ts
@@ -23,10 +23,10 @@ index 222f149..d39f7d9 100644
 +export type {ChiiCtx, ChiiTarget};
 diff --git a/src/wdmcp.ts b/src/wdmcp.ts
 new file mode 100644
-index 0000000..24fa45a
+index 0000000..87291c2
 --- /dev/null
 +++ b/src/wdmcp.ts
-@@ -0,0 +1,650 @@
+@@ -0,0 +1,655 @@
 +/* eslint-disable @local/check-license */
 +
 +import {EventEmitter} from 'node:events';
@@ -34,13 +34,13 @@ index 0000000..24fa45a
 +import type {ConnectionTransport} from 'puppeteer';
 +import type {WebSocket} from 'ws';
 +
++import type {parseArguments} from './bin/chrome-devtools-mcp-cli-options.js';
 +import {logger} from './logger.js';
 +import type {ChiiCtx, ChiiTarget} from './third_party/index.js';
 +import {chii} from './third_party/index.js';
 +
 +const {start} = chii;
 +
-+const CHII_PORT = 9333;
 +const CHII_CLIENT_PREFIX = 'wdmcp_client_';
 +const SESSION_PREFIX = 'wdmcp_sess_';
 +
@@ -145,8 +145,6 @@ index 0000000..24fa45a
 + * puppeteer never sees a stale session.
 + */
 +export class WebviewDevtoolsMcpContext {
-+  private chiiCtx: ChiiCtx;
-+
 +  /** Live chii targets, keyed by chii target id (== our CDP targetId). */
 +  #targets = new Map<
 +    string,
@@ -191,22 +189,29 @@ index 0000000..24fa45a
 +    },
 +  );
 +
-+  constructor(chiiCtx: ChiiCtx) {
-+    this.chiiCtx = chiiCtx;
++  constructor(
++    private chiiCtx: ChiiCtx,
++    private serverArgs: ReturnType<typeof parseArguments>,
++  ) {
 +    chiiCtx.wss.channelManager.on('target_changed', this.#onTargetChanged);
 +    // Pick up any targets that connected before we subscribed.
 +    this.#onTargetChanged();
 +  }
 +
-+  static create = async () => {
++  static create = async ({
++    serverArgs,
++  }: {
++    serverArgs: ReturnType<typeof parseArguments>;
++  }) => {
 +    const chiiCtx = start({
-+      port: CHII_PORT,
++      port: serverArgs.port,
++      host: serverArgs.host,
 +      log: (...args) => {
 +        logger?.(...args);
 +      },
 +    });
 +
-+    return new WebviewDevtoolsMcpContext(chiiCtx);
++    return new WebviewDevtoolsMcpContext(chiiCtx, serverArgs);
 +  };
 +
 +  /**
