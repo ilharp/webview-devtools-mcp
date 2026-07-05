@@ -8,7 +8,7 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 78 insertions(+), 29 deletions(-)
 
 diff --git a/src/domains/Runtime.ts b/src/domains/Runtime.ts
-index a7ca7ac..0bd7762 100644
+index b73e26f..ca23a09 100644
 --- a/src/domains/Runtime.ts
 +++ b/src/domains/Runtime.ts
 @@ -3,31 +3,32 @@ import each from 'licia/each'
@@ -26,7 +26,7 @@ index a7ca7ac..0bd7762 100644
  import Protocol from 'devtools-protocol'
 -import { getTimestamp } from '../lib/util'
 +import { getTimestamp, createErr } from '../lib/util'
- import { mainContext } from '../lib/executionContext'
+ import { mainContext } from '../wdmcp/executionContext'
  import Runtime = Protocol.Runtime
  
  export async function callFunctionOn(

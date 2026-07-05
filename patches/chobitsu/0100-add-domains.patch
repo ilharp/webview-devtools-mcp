@@ -1,14 +1,14 @@
-feat: add executionContext
+feat: add more domains
 
 From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/domains/Accessibility.ts |  326 ++++++++++++++++++++++++++++++++++++++++++
- src/lib/executionContext.ts  |   45 ++++++
+ src/domains/Accessibility.ts  |  326 +++++++++++++++++++++++++++++++++++++++++
+ src/wdmcp/executionContext.ts |   45 ++++++
  2 files changed, 371 insertions(+)
  create mode 100644 src/domains/Accessibility.ts
- create mode 100644 src/lib/executionContext.ts
+ create mode 100644 src/wdmcp/executionContext.ts
 
 diff --git a/src/domains/Accessibility.ts b/src/domains/Accessibility.ts
 new file mode 100644
@@ -342,14 +342,14 @@ index 0000000..43c55d9
 +    nodes: new Builder().build(),
 +  }
 +}
-diff --git a/src/lib/executionContext.ts b/src/lib/executionContext.ts
+diff --git a/src/wdmcp/executionContext.ts b/src/wdmcp/executionContext.ts
 new file mode 100644
-index 0000000..ee100a4
+index 0000000..c146a48
 --- /dev/null
-+++ b/src/lib/executionContext.ts
++++ b/src/wdmcp/executionContext.ts
 @@ -0,0 +1,45 @@
-+import connector from './connector'
-+import { MAIN_FRAME_ID } from './constants'
++import connector from '../lib/connector'
++import { MAIN_FRAME_ID } from '../lib/constants'
 +
 +// chobitsu has a single real JS global, so "isolated worlds" are faked: every
 +// context maps to the same global. puppeteer only needs each world to have a
@@ -359,7 +359,7 @@ index 0000000..ee100a4
 +
 +let nextId = 1
 +
-+function makeAuxData(isDefault: boolean) {
++const makeAuxData = (isDefault: boolean) => {
 +  return {
 +    isDefault,
 +    type: isDefault ? 'default' : 'isolated',
@@ -380,7 +380,7 @@ index 0000000..ee100a4
 + * Allocates a fake isolated world and announces it via
 + * `Runtime.executionContextCreated`. Returns the new execution context id.
 + */
-+export function createContext(name: string) {
++export const createContext = (name: string) => {
 +  const id = nextId++
 +  connector.trigger('Runtime.executionContextCreated', {
 +    context: {

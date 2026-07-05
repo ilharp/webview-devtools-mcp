@@ -2,7 +2,7 @@
 0001-skiplibcheck.patch
 0010-disable-minimize.patch
 0020-enable-es2020-bigint.patch
-0100-add-new-domains.patch
+0100-add-domains.patch
 0110-update.patch
 0120-fallback-to-backendnodeid.patch
 0130-use-real-eval.patch

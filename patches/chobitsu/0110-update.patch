@@ -38,7 +38,7 @@ index 618798e..92909dc 100644
    const { name, text, nodeId } = params
  
 diff --git a/src/domains/Page.ts b/src/domains/Page.ts
-index 45c1752..da12dab 100644
+index 45c1752..3cffe3f 100644
 --- a/src/domains/Page.ts
 +++ b/src/domains/Page.ts
 @@ -5,7 +5,7 @@ import now from 'licia/now'
@@ -54,7 +54,7 @@ index 45c1752..da12dab 100644
    getUrl,
  } from '../lib/util'
  import connector from '../lib/connector'
-+import { createContext } from '../lib/executionContext'
++import { createContext } from '../wdmcp/executionContext'
  import { isValidNode } from '../lib/nodeManager'
  import html2canvas, { Options as html2canvasOptions } from 'html2canvas'
  import * as resources from '../lib/resources'
@@ -189,14 +189,14 @@ index 45c1752..da12dab 100644
 +  return canvas
 +}
 diff --git a/src/domains/Runtime.ts b/src/domains/Runtime.ts
-index beaee5d..a7ca7ac 100644
+index beaee5d..b73e26f 100644
 --- a/src/domains/Runtime.ts
 +++ b/src/domains/Runtime.ts
 @@ -13,14 +13,9 @@ import * as objManager from '../lib/objManager'
  import { evalJs, evalJsAsync, setGlobal } from '../lib/evaluate'
  import Protocol from 'devtools-protocol'
  import { getTimestamp } from '../lib/util'
-+import { mainContext } from '../lib/executionContext'
++import { mainContext } from '../wdmcp/executionContext'
  import Runtime = Protocol.Runtime
  
 -const executionContext = {
