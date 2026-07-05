@@ -23,7 +23,7 @@ index 222f149..d39f7d9 100644
 +export type {ChiiCtx, ChiiTarget};
 diff --git a/src/wdmcp.ts b/src/wdmcp.ts
 new file mode 100644
-index 0000000..87291c2
+index 0000000..8706a9b
 --- /dev/null
 +++ b/src/wdmcp.ts
 @@ -0,0 +1,655 @@
@@ -243,7 +243,7 @@ index 0000000..87291c2
 +        }
 +        reject(
 +          new Error(
-+            `No webview connected to ws://127.0.0.1:${CHII_PORT} within ${timeoutMs}ms. Open your webview (inject target.js) and retry.`,
++            `No webview connected to ${this.serverArgs.host}:${this.serverArgs.port} within ${timeoutMs}ms. Open your webview (inject target.js) and retry.`,
 +          ),
 +        );
 +      }, timeoutMs);
