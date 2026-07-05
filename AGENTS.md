@@ -27,16 +27,10 @@ Files **added** by our patches (not upstream files) are owned by this project �
 - `packages/chobitsu` — fork of chobitsu (the webview-side CDP backend); Changes require a rebuild before they reach `target.js`.
 - `packages/server` (`@wdmcp/server`) — the HTTP/WS server extracted from chii, used by chrome-devtools-mcp's wdmcp transport.
 
-## Build steps
+## Build
 
 ```sh
-yarn --immutable
-yarn workspace @wdmcp/server build
-yarn workspace chobitsu build
-yarn workspace chii gulp clean
-yarn workspace chii webpack --mode=production
-yarn workspace chrome-devtools-mcp prepare
-COREPACK_ENABLE_STRICT=0 yarn workspace chrome-devtools-mcp bundle
-mkdir -p packages/chrome-devtools-mcp/build/server
-cp packages/chii/public/target.js packages/chrome-devtools-mcp/build/server/target.js
+make -j16
 ```
+
+Always use `-j16` because we use make to parallelize real build tasks.
