@@ -6,9 +6,11 @@ From: Il Harper <hi@ilharper.com>
 ---
  src/domains/Accessibility.ts  |  326 +++++++++++++++++++++++++++++++++++++++++
  src/wdmcp/executionContext.ts |   45 ++++++
- 2 files changed, 371 insertions(+)
+ src/wdmcp/page.ts             |   27 +++
+ 3 files changed, 398 insertions(+)
  create mode 100644 src/domains/Accessibility.ts
  create mode 100644 src/wdmcp/executionContext.ts
+ create mode 100644 src/wdmcp/page.ts
 
 diff --git a/src/domains/Accessibility.ts b/src/domains/Accessibility.ts
 new file mode 100644
@@ -392,4 +394,37 @@ index 0000000..c146a48
 +    },
 +  })
 +  return id
++}
+diff --git a/src/wdmcp/page.ts b/src/wdmcp/page.ts
+new file mode 100644
+index 0000000..8978d66
+--- /dev/null
++++ b/src/wdmcp/page.ts
+@@ -0,0 +1,27 @@
++import Protocol from 'devtools-protocol'
++import Page = Protocol.Page
++
++export const cropCanvas = (
++  source: HTMLCanvasElement,
++  region: Page.Viewport,
++): HTMLCanvasElement => {
++  const scale = region.scale || 1
++  const canvas = document.createElement('canvas')
++  canvas.width = Math.max(1, Math.round(region.width * scale))
++  canvas.height = Math.max(1, Math.round(region.height * scale))
++  const ctx = canvas.getContext('2d')
++  if (ctx) {
++    ctx.drawImage(
++      source,
++      region.x,
++      region.y,
++      region.width,
++      region.height,
++      0,
++      0,
++      canvas.width,
++      canvas.height,
++    )
++  }
++  return canvas
 +}

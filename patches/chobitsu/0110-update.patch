@@ -4,12 +4,12 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/domains/DOM.ts     |   15 ++++++
- src/domains/Page.ts    |  122 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/domains/Runtime.ts |   11 +---
- src/index.ts           |   10 ++++
+ src/domains/DOM.ts     |   15 +++++++
+ src/domains/Page.ts    |   98 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/domains/Runtime.ts |   11 +----
+ src/index.ts           |   10 +++++
  src/lib/constants.ts   |    1 
- 5 files changed, 150 insertions(+), 9 deletions(-)
+ 5 files changed, 126 insertions(+), 9 deletions(-)
 
 diff --git a/src/domains/DOM.ts b/src/domains/DOM.ts
 index 618798e..92909dc 100644
@@ -38,7 +38,7 @@ index 618798e..92909dc 100644
    const { name, text, nodeId } = params
  
 diff --git a/src/domains/Page.ts b/src/domains/Page.ts
-index 45c1752..3cffe3f 100644
+index 45c1752..38df08c 100644
 --- a/src/domains/Page.ts
 +++ b/src/domains/Page.ts
 @@ -5,7 +5,7 @@ import now from 'licia/now'
@@ -50,7 +50,7 @@ index 45c1752..3cffe3f 100644
  import {
    getBase64Content,
    getTextContent,
-@@ -13,6 +13,7 @@ import {
+@@ -13,11 +13,13 @@ import {
    getUrl,
  } from '../lib/util'
  import connector from '../lib/connector'
@@ -58,7 +58,13 @@ index 45c1752..3cffe3f 100644
  import { isValidNode } from '../lib/nodeManager'
  import html2canvas, { Options as html2canvasOptions } from 'html2canvas'
  import * as resources from '../lib/resources'
-@@ -29,6 +30,47 @@ export function enable() {
+ import Protocol from 'devtools-protocol'
+ import Page = Protocol.Page
++import { cropCanvas } from '../wdmcp/page'
+ 
+ let proxy = ''
+ 
+@@ -29,6 +31,47 @@ export function enable() {
    stopScreencast()
  }
  
@@ -106,7 +112,7 @@ index 45c1752..3cffe3f 100644
  export function reload() {
    location.reload()
  }
-@@ -242,3 +284,81 @@ async function captureScreenshot() {
+@@ -242,3 +285,56 @@ async function captureScreenshot() {
  
    isCapturingScreenshot = false
  }
@@ -162,31 +168,6 @@ index 45c1752..3cffe3f 100644
 +    .replace(/^data:image\/\w+;base64,/, '')
 +
 +  return { data }
-+}
-+
-+function cropCanvas(
-+  source: HTMLCanvasElement,
-+  region: Page.Viewport
-+): HTMLCanvasElement {
-+  const scale = region.scale || 1
-+  const canvas = document.createElement('canvas')
-+  canvas.width = Math.max(1, Math.round(region.width * scale))
-+  canvas.height = Math.max(1, Math.round(region.height * scale))
-+  const ctx = canvas.getContext('2d')
-+  if (ctx) {
-+    ctx.drawImage(
-+      source,
-+      region.x,
-+      region.y,
-+      region.width,
-+      region.height,
-+      0,
-+      0,
-+      canvas.width,
-+      canvas.height
-+    )
-+  }
-+  return canvas
 +}
 diff --git a/src/domains/Runtime.ts b/src/domains/Runtime.ts
 index beaee5d..b73e26f 100644
