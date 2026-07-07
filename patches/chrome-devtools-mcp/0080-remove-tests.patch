@@ -4,14 +4,14 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- tests/browser.test.ts |  166 +------------------------------------------------
- 1 file changed, 2 insertions(+), 164 deletions(-)
+ tests/browser.test.ts |  166 -------------------------------------------------
+ 1 file changed, 1 insertion(+), 165 deletions(-)
 
 diff --git a/tests/browser.test.ts b/tests/browser.test.ts
-index 3c4ed59..6f9a89f 100644
+index 3c4ed59..6e331c6 100644
 --- a/tests/browser.test.ts
 +++ b/tests/browser.test.ts
-@@ -4,176 +4,14 @@
+@@ -4,176 +4,12 @@
   * SPDX-License-Identifier: Apache-2.0
   */
  
@@ -31,7 +31,7 @@ index 3c4ed59..6f9a89f 100644
    it('detects display does not crash', () => {
      detectDisplay();
    });
- 
+-
 -  it('cannot launch multiple times with the same profile', async () => {
 -    const tmpDir = os.tmpdir();
 -    const folderPath = path.join(tmpDir, `temp-folder-${crypto.randomUUID()}`);
@@ -188,5 +188,4 @@ index 3c4ed59..6f9a89f 100644
 -      }
 -    });
 -  });
-+  describe('Blocking', () => {});
  });
