@@ -8,7 +8,7 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/rollup.config.mjs b/rollup.config.mjs
-index d1ed52c..42d73f9 100644
+index 0a15c51..790fc19 100644
 --- a/rollup.config.mjs
 +++ b/rollup.config.mjs
 @@ -149,7 +149,7 @@ const bundleDependency = (

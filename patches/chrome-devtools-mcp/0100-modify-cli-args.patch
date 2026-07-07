@@ -8,7 +8,7 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 21 insertions(+), 174 deletions(-)
 
 diff --git a/src/bin/chrome-devtools-mcp-cli-options.ts b/src/bin/chrome-devtools-mcp-cli-options.ts
-index 33a10ea..a37bc33 100644
+index 5d0bedd..d24a2d6 100644
 --- a/src/bin/chrome-devtools-mcp-cli-options.ts
 +++ b/src/bin/chrome-devtools-mcp-cli-options.ts
 @@ -8,141 +8,38 @@ import type {YargsOptions} from '../third_party/index.js';
@@ -170,7 +170,7 @@ index 33a10ea..a37bc33 100644
    acceptInsecureCerts: {
      type: 'boolean',
      description: `If enabled, ignores errors relative to self-signed and expired certificates. Use with caution.`,
-@@ -206,11 +103,6 @@ export const cliOptions = {
+@@ -213,11 +110,6 @@ export const cliOptions = {
      describe:
        'Set to true to enable debugging WebMCP tools. Requires Chrome 149+ with the following flags: `--enable-features=WebMCP,DevToolsWebMCPSupport`',
    },
@@ -182,7 +182,7 @@ index 33a10ea..a37bc33 100644
    blockedUrlPattern: {
      type: 'array',
      describe:
-@@ -223,11 +115,6 @@ export const cliOptions = {
+@@ -230,11 +122,6 @@ export const cliOptions = {
        "Restricts browser's network access by allowing only specified URL patterns (uses https://urlpattern.spec.whatwg.org/). Requires Chrome 149+. Silently detaches from targets with unallowed URLs upon connection, and blocks runtime requests (including navigations and subresources). Accepts an array of patterns.",
      conflicts: ['blockedUrlPattern'],
    },
@@ -194,7 +194,7 @@ index 33a10ea..a37bc33 100644
    categoryEmulation: {
      type: 'boolean',
      default: true,
-@@ -369,14 +256,6 @@ export function parseArguments(
+@@ -376,14 +263,6 @@ export function parseArguments(
      .middleware(args => {
        // We can't set default in the options else
        // Yargs will complain
@@ -209,7 +209,7 @@ index 33a10ea..a37bc33 100644
        if (env['CI'] || env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS']) {
          console.error(
            "turning off usage statistics. process.env['CI'] || process.env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] is set.",
-@@ -386,53 +265,21 @@ export function parseArguments(
+@@ -393,53 +272,21 @@ export function parseArguments(
      })
      .example([
        [
