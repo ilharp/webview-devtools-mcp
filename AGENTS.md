@@ -8,6 +8,7 @@ Implication: every change you make to an **upstream-originated file** in these f
 - **Make the smallest possible, logically-correct change.** First inspect the baseline and your diff with `git -C packages/<pkg> show HEAD:<file>` / `git -C packages/<pkg> diff`, and leave untouched any line you don't have to change.
 - **Do not "clean up" pre-existing upstream dead code, duplication, or style.** That bloats the patch, makes it dirty, and makes rebasing onto a newer upstream harder. Touch only what your feature actually needs.
 - When you need a value for later use, prefer inlining or a minimal local extraction over adding large blocks near the top of the file (unless truly necessary).
+- For the `packages/chobitsu` package, put newly-written utility functions under `packages/chobitsu/src/wdmcp/` whenever possible, rather than modifying the original files. This way you can freely edit the code in the wdmcp folder without being bound by the minimal-change constraint.
 
 ### Which files you can freely rewrite
 
