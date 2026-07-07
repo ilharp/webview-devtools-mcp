@@ -4,12 +4,14 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/domains/Accessibility.ts  |  326 +++++++++++++++++++++++++++++++++++++++++
- src/wdmcp/executionContext.ts |   45 ++++++
- src/wdmcp/page.ts             |   27 +++
- 3 files changed, 398 insertions(+)
+ src/domains/Accessibility.ts  |  326 ++++++++++++++++++++++++++++++
+ src/wdmcp/executionContext.ts |   45 ++++
+ src/wdmcp/input.ts            |  443 +++++++++++++++++++++++++++++++++++++++++
+ src/wdmcp/page.ts             |  285 ++++++++++++++++++++++++++
+ 4 files changed, 1099 insertions(+)
  create mode 100644 src/domains/Accessibility.ts
  create mode 100644 src/wdmcp/executionContext.ts
+ create mode 100644 src/wdmcp/input.ts
  create mode 100644 src/wdmcp/page.ts
 
 diff --git a/src/domains/Accessibility.ts b/src/domains/Accessibility.ts
@@ -395,12 +397,461 @@ index 0000000..c146a48
 +  })
 +  return id
 +}
+diff --git a/src/wdmcp/input.ts b/src/wdmcp/input.ts
+new file mode 100644
+index 0000000..adea6fe
+--- /dev/null
++++ b/src/wdmcp/input.ts
+@@ -0,0 +1,443 @@
++import Protocol from 'devtools-protocol'
++import Input = Protocol.Input
++
++interface Mods {
++  altKey: boolean
++  ctrlKey: boolean
++  metaKey: boolean
++  shiftKey: boolean
++}
++
++function decodeModifiers(m: number): Mods {
++  return {
++    altKey: !!(m & 1),
++    ctrlKey: !!(m & 2),
++    metaKey: !!(m & 4),
++    shiftKey: !!(m & 8),
++  }
++}
++
++function getTarget(): HTMLElement {
++  let el: Element | null = document.activeElement
++  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
++    el = el.shadowRoot.activeElement
++  }
++  if (el instanceof HTMLElement) return el
++  return document.body
++}
++
++export function dispatchKeyEvent(params: Input.DispatchKeyEventRequest) {
++  const mods = decodeModifiers(params.modifiers || 0)
++  const target = getTarget()
++  const text = params.text || ''
++
++  if (params.type === 'char') {
++    if (text) insertIntoField(target, text)
++    return
++  }
++
++  const domType = params.type === 'keyUp' ? 'keyup' : 'keydown'
++  const ev = buildKeyboardEvent(domType, params, mods)
++  target.dispatchEvent(ev)
++
++  if (domType !== 'keydown' || ev.defaultPrevented) return
++  applyDefaultEditing(target, params, mods, text)
++}
++
++export function insertText(params: Input.InsertTextRequest) {
++  const text = params.text || ''
++  if (!text) return
++  insertIntoField(getTarget(), text)
++}
++
++function buildKeyboardEvent(
++  domType: 'keydown' | 'keyup',
++  params: Input.DispatchKeyEventRequest,
++  mods: Mods
++): KeyboardEvent {
++  const ev = new KeyboardEvent(domType, {
++    key: params.key || '',
++    code: params.code || '',
++    location: params.location || 0,
++    repeat: !!params.autoRepeat,
++    isComposing: false,
++    bubbles: true,
++    cancelable: true,
++    view: window,
++    altKey: mods.altKey,
++    ctrlKey: mods.ctrlKey,
++    metaKey: mods.metaKey,
++    shiftKey: mods.shiftKey,
++  })
++  const vk = params.windowsVirtualKeyCode || 0
++  defineLegacyProp(ev, 'keyCode', vk)
++  defineLegacyProp(ev, 'which', vk)
++  return ev
++}
++
++function defineLegacyProp(ev: KeyboardEvent, name: string, value: number) {
++  Object.defineProperty(ev, name, {
++    configurable: true,
++    get() {
++      return value
++    },
++  })
++}
++
++function applyDefaultEditing(
++  el: HTMLElement,
++  params: Input.DispatchKeyEventRequest,
++  mods: Mods,
++  text: string
++) {
++  const key = params.key || ''
++
++  if (
++    (mods.ctrlKey || mods.metaKey) &&
++    (key === 'a' || key === 'A' || params.code === 'KeyA')
++  ) {
++    selectAll(el)
++    return
++  }
++  if (mods.ctrlKey || mods.metaKey || mods.altKey) return
++
++  if (text && text !== '\r') {
++    insertIntoField(el, text)
++    return
++  }
++  if (key === 'Enter' || text === '\r') {
++    insertNewline(el)
++    return
++  }
++
++  switch (key) {
++    case 'Backspace':
++      handleBackspaceDelete(el, false)
++      break
++    case 'Delete':
++      handleBackspaceDelete(el, true)
++      break
++    case 'ArrowLeft':
++      handleArrow(el, -1, mods.shiftKey)
++      break
++    case 'ArrowRight':
++      handleArrow(el, 1, mods.shiftKey)
++      break
++    case 'Home':
++      handleHomeEnd(el, false, mods.shiftKey)
++      break
++    case 'End':
++      handleHomeEnd(el, true, mods.shiftKey)
++      break
++  }
++}
++
++/* ------------------------------- field model ------------------------------ */
++
++type TextInput = HTMLInputElement | HTMLTextAreaElement
++
++function isTextInput(el: HTMLElement): el is TextInput {
++  return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
++}
++
++const SELECTABLE_INPUT_TYPES = ['text', 'search', 'url', 'tel', 'password']
++
++function supportsSelection(el: TextInput): boolean {
++  if (el instanceof HTMLTextAreaElement) return true
++  return SELECTABLE_INPUT_TYPES.indexOf(el.type) >= 0
++}
++
++function numOr(v: number | null, fallback: number): number {
++  return v === null ? fallback : v
++}
++
++function clamp(v: number, lo: number, hi: number): number {
++  return Math.max(lo, Math.min(hi, v))
++}
++
++function setSelection(
++  el: TextInput,
++  start: number,
++  end: number,
++  direction?: 'forward' | 'backward' | 'none'
++) {
++  try {
++    el.setSelectionRange(start, end, direction)
++  } catch (e) {
++    /* selection unsupported for this input type */
++  }
++}
++
++function setNativeValue(el: TextInput, value: string) {
++  const proto =
++    el instanceof HTMLTextAreaElement
++      ? HTMLTextAreaElement.prototype
++      : HTMLInputElement.prototype
++  const desc = Object.getOwnPropertyDescriptor(proto, 'value')
++  if (desc && desc.set) {
++    desc.set.call(el, value)
++  } else {
++    el.value = value
++  }
++}
++
++function dispatchBeforeInput(
++  el: HTMLElement,
++  inputType: string,
++  data: string | null
++): boolean {
++  return el.dispatchEvent(
++    new InputEvent('beforeinput', {
++      bubbles: true,
++      cancelable: true,
++      inputType,
++      data,
++    })
++  )
++}
++
++function dispatchInput(el: HTMLElement, inputType: string, data: string | null) {
++  el.dispatchEvent(
++    new InputEvent('input', {
++      bubbles: true,
++      cancelable: false,
++      inputType,
++      data,
++    })
++  )
++}
++
++/* --------------------------------- insert --------------------------------- */
++
++function insertIntoField(el: HTMLElement, text: string) {
++  if (isTextInput(el)) {
++    replaceSelection(el, text, 'insertText', text)
++  } else if (el.isContentEditable) {
++    insertIntoContentEditable(el, text)
++  }
++}
++
++function replaceSelection(
++  el: TextInput,
++  text: string,
++  inputType: string,
++  data: string | null
++) {
++  if (!dispatchBeforeInput(el, inputType, data)) return
++
++  if (supportsSelection(el)) {
++    const value = el.value
++    const len = value.length
++    const start = numOr(el.selectionStart, len)
++    const end = numOr(el.selectionEnd, len)
++    setNativeValue(el, value.slice(0, start) + text + value.slice(end))
++    const caret = start + text.length
++    setSelection(el, caret, caret)
++  } else {
++    setNativeValue(el, el.value + text)
++  }
++
++  dispatchInput(el, inputType, data)
++}
++
++function insertNewline(el: HTMLElement) {
++  if (el instanceof HTMLTextAreaElement) {
++    replaceSelection(el, '\n', 'insertLineBreak', null)
++  } else if (el.isContentEditable) {
++    insertParagraphInContentEditable(el)
++  }
++}
++
++/* --------------------------------- delete --------------------------------- */
++
++function handleBackspaceDelete(el: HTMLElement, forward: boolean) {
++  if (isTextInput(el)) {
++    deleteInInput(el, forward)
++  } else if (el.isContentEditable) {
++    deleteInContentEditable(el, forward)
++  }
++}
++
++function deleteInInput(el: TextInput, forward: boolean) {
++  const inputType = forward ? 'deleteContentForward' : 'deleteContentBackward'
++
++  if (!supportsSelection(el)) {
++    if (!forward && el.value.length) {
++      if (!dispatchBeforeInput(el, inputType, null)) return
++      setNativeValue(el, el.value.slice(0, -1))
++      dispatchInput(el, inputType, null)
++    }
++    return
++  }
++
++  const value = el.value
++  const len = value.length
++  let start = numOr(el.selectionStart, len)
++  let end = numOr(el.selectionEnd, len)
++
++  if (start === end) {
++    if (forward) {
++      if (end >= len) return
++      end += 1
++    } else {
++      if (start <= 0) return
++      start -= 1
++    }
++  }
++
++  if (!dispatchBeforeInput(el, inputType, null)) return
++  setNativeValue(el, value.slice(0, start) + value.slice(end))
++  setSelection(el, start, start)
++  dispatchInput(el, inputType, null)
++}
++
++/* ---------------------------- caret movement ------------------------------ */
++
++function handleArrow(el: HTMLElement, delta: number, extend: boolean) {
++  if (isTextInput(el)) {
++    moveCaretInInput(el, delta, extend)
++  } else if (el.isContentEditable) {
++    ceModify(extend, delta < 0 ? 'backward' : 'forward', 'character')
++  }
++}
++
++function handleHomeEnd(el: HTMLElement, toEnd: boolean, extend: boolean) {
++  if (isTextInput(el)) {
++    moveCaretToEdgeInInput(el, toEnd, extend)
++  } else if (el.isContentEditable) {
++    ceModify(extend, toEnd ? 'forward' : 'backward', 'lineboundary')
++  }
++}
++
++function moveCaretInInput(el: TextInput, delta: number, extend: boolean) {
++  if (!supportsSelection(el)) return
++  const len = el.value.length
++  const start = numOr(el.selectionStart, 0)
++  const end = numOr(el.selectionEnd, 0)
++
++  if (!extend) {
++    let pos: number
++    if (start !== end) pos = delta < 0 ? start : end
++    else pos = clamp(start + delta, 0, len)
++    setSelection(el, pos, pos)
++    return
++  }
++
++  const backward = el.selectionDirection === 'backward'
++  const anchor = backward ? end : start
++  const focus = clamp((backward ? start : end) + delta, 0, len)
++  setSelection(
++    el,
++    Math.min(anchor, focus),
++    Math.max(anchor, focus),
++    focus < anchor ? 'backward' : 'forward'
++  )
++}
++
++function moveCaretToEdgeInInput(el: TextInput, toEnd: boolean, extend: boolean) {
++  if (!supportsSelection(el)) return
++  const target = toEnd ? el.value.length : 0
++
++  if (!extend) {
++    setSelection(el, target, target)
++    return
++  }
++
++  const backward = el.selectionDirection === 'backward'
++  const start = numOr(el.selectionStart, 0)
++  const end = numOr(el.selectionEnd, 0)
++  const anchor = backward ? end : start
++  setSelection(
++    el,
++    Math.min(anchor, target),
++    Math.max(anchor, target),
++    target < anchor ? 'backward' : 'forward'
++  )
++}
++
++/* -------------------------------- select all ------------------------------ */
++
++function selectAll(el: HTMLElement) {
++  if (isTextInput(el)) {
++    if (supportsSelection(el)) setSelection(el, 0, el.value.length)
++    return
++  }
++  if (el.isContentEditable) {
++    const sel = window.getSelection()
++    if (!sel) return
++    const range = document.createRange()
++    range.selectNodeContents(el)
++    sel.removeAllRanges()
++    sel.addRange(range)
++  }
++}
++
++/* ----------------------------- contenteditable ---------------------------- */
++
++function insertIntoContentEditable(el: HTMLElement, text: string) {
++  const sel = window.getSelection()
++  if (sel && sel.rangeCount > 0) {
++    if (!dispatchBeforeInput(el, 'insertText', text)) return
++    const range = sel.getRangeAt(0)
++    range.deleteContents()
++    const node = document.createTextNode(text)
++    range.insertNode(node)
++    range.setStartAfter(node)
++    range.collapse(true)
++    sel.removeAllRanges()
++    sel.addRange(range)
++    dispatchInput(el, 'insertText', text)
++    return
++  }
++  try {
++    document.execCommand('insertText', false, text)
++  } catch (e) {
++    /* execCommand unavailable */
++  }
++}
++
++function deleteInContentEditable(el: HTMLElement, forward: boolean) {
++  const inputType = forward ? 'deleteContentForward' : 'deleteContentBackward'
++  const sel = window.getSelection()
++  if (!sel || sel.rangeCount === 0) return
++  if (!dispatchBeforeInput(el, inputType, null)) return
++
++  if (sel.getRangeAt(0).collapsed) {
++    ceModify(true, forward ? 'forward' : 'backward', 'character')
++  }
++  const range = sel.getRangeAt(0)
++  range.deleteContents()
++  range.collapse(true)
++  sel.removeAllRanges()
++  sel.addRange(range)
++  dispatchInput(el, inputType, null)
++}
++
++function insertParagraphInContentEditable(el: HTMLElement) {
++  const sel = window.getSelection()
++  if (!sel || sel.rangeCount === 0) return
++  if (!dispatchBeforeInput(el, 'insertParagraph', null)) return
++  const range = sel.getRangeAt(0)
++  range.deleteContents()
++  const br = document.createElement('br')
++  range.insertNode(br)
++  range.setStartAfter(br)
++  range.collapse(true)
++  sel.removeAllRanges()
++  sel.addRange(range)
++  dispatchInput(el, 'insertParagraph', null)
++}
++
++function ceModify(
++  extend: boolean,
++  direction: 'forward' | 'backward',
++  granularity: string
++) {
++  const sel = window.getSelection()
++  if (!sel || typeof sel.modify !== 'function') return
++  try {
++    sel.modify(extend ? 'extend' : 'move', direction, granularity)
++  } catch (e) {
++    /* modify unsupported */
++  }
++}
 diff --git a/src/wdmcp/page.ts b/src/wdmcp/page.ts
 new file mode 100644
-index 0000000..8978d66
+index 0000000..47ba2fd
 --- /dev/null
 +++ b/src/wdmcp/page.ts
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,285 @@
 +import Protocol from 'devtools-protocol'
 +import Page = Protocol.Page
 +
@@ -427,4 +878,262 @@ index 0000000..8978d66
 +    )
 +  }
 +  return canvas
++}
++
++type HistoryEntry = Page.NavigationEntry
++
++type HistorySnapshot = {
++  currentIndex: number
++  entries: HistoryEntry[]
++}
++
++const STORAGE_KEY = '__WDMCP_HISTORY'
++let installed = false
++let nextEntryId = 1
++let currentEntryId = 0
++let entries: HistoryEntry[] = []
++let onSameDocumentNavigation: ((url: string) => void) | undefined
++let originalPushState: History['pushState'] | undefined
++let originalReplaceState: History['replaceState'] | undefined
++let pendingEntryId: number | undefined
++
++export function installNavigationHistoryShim(
++  onNavigation: (url: string) => void,
++) {
++  onSameDocumentNavigation = onNavigation
++  ensureHistoryState()
++
++  if (installed) {
++    return
++  }
++
++  installed = true
++  originalPushState = history.pushState
++  originalReplaceState = history.replaceState
++
++  history.pushState = function (state, unused, url) {
++    originalPushState!.call(this, state, unused, url)
++    pushCurrentEntry('link')
++    notifySameDocumentNavigation()
++  }
++
++  history.replaceState = function (state, unused, url) {
++    originalReplaceState!.call(this, state, unused, url)
++    replaceCurrentEntry()
++    notifySameDocumentNavigation()
++  }
++
++  addEventListener('popstate', () => {
++    if (pendingEntryId !== undefined) {
++      currentEntryId = pendingEntryId
++      pendingEntryId = undefined
++    } else {
++      currentEntryId = findEntryForCurrentUrl(currentEntryId)
++    }
++    replaceCurrentEntry()
++    notifySameDocumentNavigation()
++  })
++
++  addEventListener('hashchange', () => {
++    if (pendingEntryId !== undefined) {
++      return
++    }
++    pushCurrentEntry('link')
++    notifySameDocumentNavigation()
++  })
++}
++
++export function getNavigationHistorySnapshot(): HistorySnapshot {
++  ensureHistoryState()
++  return {
++    currentIndex: getCurrentIndex(),
++    entries: entries.slice(),
++  }
++}
++
++export function navigateToHistoryEntry(entryId: number) {
++  ensureHistoryState()
++  const currentIndex = getCurrentIndex()
++  const targetIndex = entries.findIndex(entry => entry.id === entryId)
++
++  if (targetIndex === -1) {
++    throw new Error(`Navigation history entry not found: ${entryId}`)
++  }
++
++  const delta = targetIndex - currentIndex
++  if (delta === 0) {
++    return
++  }
++
++  pendingEntryId = entryId
++  history.go(delta)
++}
++
++function ensureHistoryState() {
++  loadStoredHistory()
++
++  if (!entries.length) {
++    entries = [createEntry(0, 'typed')]
++    currentEntryId = 0
++    nextEntryId = 1
++    storeHistory()
++    return
++  }
++
++  const currentIndex = entries.findIndex(entry => entry.id === currentEntryId)
++  if (currentIndex === -1) {
++    currentEntryId = entries[entries.length - 1].id
++  }
++
++  const matchingIndex = findBestCurrentUrlIndex()
++  if (matchingIndex === -1) {
++    pushCurrentEntry('link')
++  } else {
++    currentEntryId = entries[matchingIndex].id
++    replaceCurrentEntry()
++  }
++}
++
++function pushCurrentEntry(transitionType: Page.TransitionType) {
++  const currentIndex = getCurrentIndex()
++  entries = entries.slice(0, currentIndex + 1)
++  currentEntryId = nextEntryId++
++  entries.push(createEntry(currentEntryId, transitionType))
++  storeHistory()
++}
++
++function replaceCurrentEntry() {
++  const currentIndex = getCurrentIndex()
++  entries[currentIndex] = {
++    ...entries[currentIndex],
++    url: location.href,
++    userTypedURL: location.href,
++    title: document.title,
++  }
++  storeHistory()
++}
++
++function createEntry(
++  id: number,
++  transitionType: Page.TransitionType,
++): HistoryEntry {
++  return {
++    id,
++    url: location.href,
++    userTypedURL: location.href,
++    title: document.title,
++    transitionType,
++  }
++}
++
++function getCurrentIndex() {
++  const index = entries.findIndex(entry => entry.id === currentEntryId)
++  if (index !== -1) {
++    return index
++  }
++
++  currentEntryId = entries.length ? entries[entries.length - 1].id : 0
++  return entries.length ? entries.length - 1 : 0
++}
++
++function findEntryForCurrentUrl(fallbackEntryId: number) {
++  const currentIndex = getCurrentIndex()
++
++  if (entries[currentIndex] && entries[currentIndex].url === location.href) {
++    return entries[currentIndex].id
++  }
++
++  const beforeIndex = entries
++    .slice(0, currentIndex)
++    .map((entry, index) => ({ entry, index }))
++    .reverse()
++    .find(item => item.entry.url === location.href)
++  if (beforeIndex) {
++    return beforeIndex.entry.id
++  }
++
++  const afterIndex = entries
++    .slice(currentIndex + 1)
++    .find(entry => entry.url === location.href)
++  if (afterIndex) {
++    return afterIndex.id
++  }
++
++  return fallbackEntryId
++}
++
++function findBestCurrentUrlIndex() {
++  const currentIndex = entries.findIndex(entry => entry.id === currentEntryId)
++  if (currentIndex !== -1 && entries[currentIndex].url === location.href) {
++    return currentIndex
++  }
++
++  return entries.findIndex(entry => entry.url === location.href)
++}
++
++function notifySameDocumentNavigation() {
++  if (onSameDocumentNavigation) {
++    onSameDocumentNavigation(location.href)
++  }
++}
++
++function loadStoredHistory() {
++  const stored = readStoredHistory()
++  if (!stored) {
++    return
++  }
++
++  entries = stored.entries
++  currentEntryId = stored.currentEntryId
++  nextEntryId = Math.max(stored.nextEntryId, ...entries.map(entry => entry.id + 1))
++}
++
++function readStoredHistory():
++  | { entries: HistoryEntry[]; currentEntryId: number; nextEntryId: number }
++  | undefined {
++  try {
++    const raw = sessionStorage.getItem(STORAGE_KEY)
++    if (!raw) {
++      return
++    }
++
++    const parsed = JSON.parse(raw)
++    if (
++      !Array.isArray(parsed.entries) ||
++      typeof parsed.currentEntryId !== 'number' ||
++      typeof parsed.nextEntryId !== 'number'
++    ) {
++      return
++    }
++
++    return {
++      entries: parsed.entries.filter(isHistoryEntry),
++      currentEntryId: parsed.currentEntryId,
++      nextEntryId: parsed.nextEntryId,
++    }
++  } catch {
++    return
++  }
++}
++
++function storeHistory() {
++  try {
++    sessionStorage.setItem(
++      STORAGE_KEY,
++      JSON.stringify({ entries, currentEntryId, nextEntryId }),
++    )
++  } catch {
++    // Keep the in-memory copy when sessionStorage is unavailable.
++  }
++}
++
++function isHistoryEntry(value: any): value is HistoryEntry {
++  return (
++    value &&
++    typeof value.id === 'number' &&
++    typeof value.url === 'string' &&
++    typeof value.userTypedURL === 'string' &&
++    typeof value.title === 'string' &&
++    typeof value.transitionType === 'string'
++  )
 +}

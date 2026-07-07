@@ -4,12 +4,13 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/domains/DOM.ts     |   15 +++++++
- src/domains/Page.ts    |   98 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/domains/Runtime.ts |   11 +----
- src/index.ts           |   10 +++++
+ src/domains/DOM.ts     |   15 ++++++
+ src/domains/Input.ts   |    2 +
+ src/domains/Page.ts    |  128 +++++++++++++++++++++++++++++++++++++++++++-----
+ src/domains/Runtime.ts |   11 +---
+ src/index.ts           |   10 ++++
  src/lib/constants.ts   |    1 
- 5 files changed, 126 insertions(+), 9 deletions(-)
+ 6 files changed, 146 insertions(+), 21 deletions(-)
 
 diff --git a/src/domains/DOM.ts b/src/domains/DOM.ts
 index 618798e..92909dc 100644
@@ -37,8 +38,21 @@ index 618798e..92909dc 100644
  export function setAttributesAsText(params: DOM.SetAttributesAsTextRequest) {
    const { name, text, nodeId } = params
  
+diff --git a/src/domains/Input.ts b/src/domains/Input.ts
+index 3ed624a..217f49d 100644
+--- a/src/domains/Input.ts
++++ b/src/domains/Input.ts
+@@ -3,6 +3,8 @@ import toBool from 'licia/toBool'
+ import Protocol from 'devtools-protocol'
+ import Input = Protocol.Input
+ 
++export { dispatchKeyEvent, insertText } from '../wdmcp/input'
++
+ let isClick = false
+ 
+ export function emulateTouchFromMouseEvent(
 diff --git a/src/domains/Page.ts b/src/domains/Page.ts
-index 45c1752..38df08c 100644
+index 45c1752..f84110f 100644
 --- a/src/domains/Page.ts
 +++ b/src/domains/Page.ts
 @@ -5,7 +5,7 @@ import now from 'licia/now'
@@ -50,7 +64,7 @@ index 45c1752..38df08c 100644
  import {
    getBase64Content,
    getTextContent,
-@@ -13,11 +13,13 @@ import {
+@@ -13,11 +13,18 @@ import {
    getUrl,
  } from '../lib/util'
  import connector from '../lib/connector'
@@ -60,14 +74,27 @@ index 45c1752..38df08c 100644
  import * as resources from '../lib/resources'
  import Protocol from 'devtools-protocol'
  import Page = Protocol.Page
-+import { cropCanvas } from '../wdmcp/page'
++import {
++  cropCanvas,
++  getNavigationHistorySnapshot,
++  installNavigationHistoryShim,
++  navigateToHistoryEntry as navigateToHistoryEntryById,
++} from '../wdmcp/page'
  
  let proxy = ''
  
-@@ -29,6 +31,47 @@ export function enable() {
-   stopScreencast()
- }
+@@ -27,6 +34,53 @@ export function setProxy(params: any) {
  
+ export function enable() {
+   stopScreencast()
++  installNavigationHistoryShim(url => {
++    connector.trigger('Page.navigatedWithinDocument', {
++      frameId: MAIN_FRAME_ID,
++      url,
++    })
++  })
++}
++
 +// puppeteer's FrameManager.initialize() needs the frame tree to build its frame
 +// model. chobitsu is single-frame, so report just the main frame.
 +export function getFrameTree() {
@@ -107,12 +134,36 @@ index 45c1752..38df08c 100644
 +): Page.CreateIsolatedWorldResponse {
 +  const executionContextId = createContext(params.worldName || '')
 +  return { executionContextId }
+ }
+ 
+ export function reload() {
+@@ -42,18 +96,13 @@ export function navigate(params: Page.NavigateRequest): Page.NavigateResponse {
+ }
+ 
+ export function getNavigationHistory() {
+-  return {
+-    currentIndex: 0,
+-    entries: [
+-      {
+-        id: 0,
+-        url: getUrl(),
+-        userTypedURL: getUrl(),
+-        title: document.title,
+-        transitionType: 'link',
+-      },
+-    ],
+-  }
++  return getNavigationHistorySnapshot()
 +}
 +
- export function reload() {
-   location.reload()
++export function navigateToHistoryEntry(
++  params: Page.NavigateToHistoryEntryRequest,
++) {
++  navigateToHistoryEntryById(params.entryId)
  }
-@@ -242,3 +285,56 @@ async function captureScreenshot() {
+ 
+ export async function getAppManifest() {
+@@ -242,3 +291,56 @@ async function captureScreenshot() {
  
    isCapturingScreenshot = false
  }
