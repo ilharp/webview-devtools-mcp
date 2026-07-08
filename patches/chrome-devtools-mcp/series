@@ -8,3 +8,4 @@
 0200-add-wdmcp.patch
 0210-inject-wdmcp.patch
 0300-remove-tools.patch
+0310-fix-handle-dialog.patch

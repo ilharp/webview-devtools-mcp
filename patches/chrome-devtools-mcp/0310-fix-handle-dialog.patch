@@ -1,0 +1,30 @@
+refactor: fix handle dialog prompt
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ src/McpResponse.ts |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/McpResponse.ts b/src/McpResponse.ts
+index ebb45d1..e2d5aa6 100644
+--- a/src/McpResponse.ts
++++ b/src/McpResponse.ts
+@@ -40,7 +40,6 @@ import type {
+   JSONSchema7Definition,
+   Extension,
+ } from './third_party/index.js';
+-import {handleDialog} from './tools/pages.js';
+ import type {ToolGroups} from './tools/thirdPartyDeveloper.js';
+ import type {
+   DevToolsData,
+@@ -983,7 +982,7 @@ export class McpResponse implements Response {
+           : '';
+       response.push(`# Open dialog
+ ${dialog.type()}: ${dialog.message()}${defaultValueIfNeeded}.
+-Call ${handleDialog.name} to handle it before continuing.`);
++The page is blocked by this dialog. Ask the user to handle it manually before continuing.`);
+       structuredContent.dialog = {
+         type: dialog.type(),
+         message: dialog.message(),
