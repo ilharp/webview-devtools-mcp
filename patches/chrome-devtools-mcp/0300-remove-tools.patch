@@ -1,0 +1,370 @@
+refactor: remove unusable tools
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ src/tools/input.ts |   89 -------------------------
+ src/tools/pages.ts |  184 ----------------------------------------------------
+ src/tools/tools.ts |   12 ---
+ 3 files changed, 1 insertion(+), 284 deletions(-)
+
+diff --git a/src/tools/input.ts b/src/tools/input.ts
+index 2485856..6a61944 100644
+--- a/src/tools/input.ts
++++ b/src/tools/input.ts
+@@ -368,43 +368,6 @@ export const typeText = definePageTool({
+   },
+ });
+ 
+-export const drag = definePageTool({
+-  name: 'drag',
+-  description: `Drag an element onto another element`,
+-  annotations: {
+-    category: ToolCategory.INPUT,
+-    readOnlyHint: false,
+-  },
+-  schema: {
+-    from_uid: zod.string().describe('The uid of the element to drag'),
+-    to_uid: zod.string().describe('The uid of the element to drop into'),
+-    includeSnapshot: includeSnapshotSchema,
+-  },
+-  blockedByDialog: true,
+-  verifyFilesSchema: [],
+-  handler: async (request, response) => {
+-    const fromHandle = await request.page.getElementByUid(
+-      request.params.from_uid,
+-    );
+-    const toHandle = await request.page.getElementByUid(request.params.to_uid);
+-    try {
+-      const result = await request.page.waitForEventsAfterAction(async () => {
+-        await fromHandle.drag(toHandle);
+-        await new Promise(resolve => setTimeout(resolve, 50));
+-        await toHandle.drop(fromHandle);
+-      });
+-      response.appendResponseLine(`Successfully dragged an element`);
+-      response.attachWaitForResult(result);
+-      if (request.params.includeSnapshot) {
+-        response.includeSnapshot();
+-      }
+-    } finally {
+-      void fromHandle.dispose();
+-      void toHandle.dispose();
+-    }
+-  },
+-});
+-
+ export const fillForm = definePageTool({
+   name: 'fill_form',
+   description: `Fill out multiple form elements (inputs, selects, checkboxes, radios) at once. ALWAYS prefer this tool over multiple individual 'fill' or 'click' calls when interacting with forms. It is significantly faster, more reliable, and reduces turn count. Example: Fill username, password, and check "Remember Me" in one call.`,
+@@ -451,58 +414,6 @@ export const fillForm = definePageTool({
+   },
+ });
+ 
+-export const uploadFile = definePageTool({
+-  name: 'upload_file',
+-  description: 'Upload a file through a provided element.',
+-  annotations: {
+-    category: ToolCategory.INPUT,
+-    readOnlyHint: false,
+-  },
+-  schema: {
+-    uid: zod
+-      .string()
+-      .describe(
+-        'The uid of the file input element or an element that will open file chooser on the page from the page content snapshot',
+-      ),
+-    filePath: zod.string().describe('The local path of the file to upload'),
+-    includeSnapshot: includeSnapshotSchema,
+-  },
+-  blockedByDialog: true,
+-  verifyFilesSchema: ['filePath'],
+-  handler: async (request, response, _context) => {
+-    const {uid, filePath} = request.params;
+-    const handle = (await request.page.getElementByUid(
+-      uid,
+-    )) as ElementHandle<HTMLInputElement>;
+-    try {
+-      try {
+-        await handle.uploadFile(filePath);
+-      } catch {
+-        // Some sites use a proxy element to trigger file upload instead of
+-        // a type=file element. In this case, we want to default to
+-        // Page.waitForFileChooser() and upload the file this way.
+-        try {
+-          const [fileChooser] = await Promise.all([
+-            request.page.pptrPage.waitForFileChooser({timeout: 3000}),
+-            handle.asLocator().click(),
+-          ]);
+-          await fileChooser.accept([filePath]);
+-        } catch {
+-          throw new Error(
+-            `Failed to upload file. The element could not accept the file directly, and clicking it did not trigger a file chooser.`,
+-          );
+-        }
+-      }
+-      if (request.params.includeSnapshot) {
+-        response.includeSnapshot();
+-      }
+-      response.appendResponseLine(`File uploaded from ${filePath}.`);
+-    } finally {
+-      void handle.dispose();
+-    }
+-  },
+-});
+-
+ export const pressKey = definePageTool({
+   name: 'press_key',
+   description: `Press a key or key combination. Use this when other input methods like fill() cannot be used (e.g., keyboard shortcuts, navigation keys, or special key combinations).`,
+diff --git a/src/tools/pages.ts b/src/tools/pages.ts
+index 0a74aa2..7b9ec64 100644
+--- a/src/tools/pages.ts
++++ b/src/tools/pages.ts
+@@ -11,7 +11,6 @@ import {zod} from '../third_party/index.js';
+ import {ToolCategory} from './categories.js';
+ import type {ContextPage} from './ToolDefinition.js';
+ import {
+-  CLOSE_PAGE_ERROR,
+   definePageTool,
+   defineTool,
+   timeoutSchema,
+@@ -126,95 +125,6 @@ export const selectPage = defineTool({
+   },
+ });
+ 
+-export const closePage = defineTool({
+-  name: 'close_page',
+-  description: `Closes the page by its index. The last open page cannot be closed.`,
+-  annotations: {
+-    category: ToolCategory.NAVIGATION,
+-    readOnlyHint: false,
+-  },
+-  schema: {
+-    pageId: zod
+-      .number()
+-      .describe('The ID of the page to close. Call list_pages to list pages.'),
+-  },
+-  blockedByDialog: false,
+-  verifyFilesSchema: [],
+-  handler: async (request, response, context) => {
+-    try {
+-      await context.closePage(request.params.pageId);
+-    } catch (err) {
+-      if (err.message === CLOSE_PAGE_ERROR) {
+-        response.appendResponseLine(err.message);
+-      } else {
+-        throw err;
+-      }
+-    }
+-    response.setIncludePages(true);
+-    response.setListThirdPartyDeveloperTools();
+-  },
+-});
+-
+-export const newPage = defineTool(args => {
+-  return {
+-    name: 'new_page',
+-    description: `Open a new tab and load a URL. Use project URL if not specified otherwise.`,
+-    annotations: {
+-      category: ToolCategory.NAVIGATION,
+-      readOnlyHint: false,
+-    },
+-    schema: {
+-      url: zod.string().describe('URL to load in a new page.'),
+-      background: zod
+-        .boolean()
+-        .optional()
+-        .describe(
+-          'Whether to open the page in the background without bringing it to the front. Default is false (foreground).',
+-        ),
+-      isolatedContext: zod
+-        .string()
+-        .optional()
+-        .describe(
+-          'If specified, the page is created in an isolated browser context with the given name. ' +
+-            'Pages in the same browser context share cookies and storage. ' +
+-            'Pages in different browser contexts are fully isolated.',
+-        ),
+-      ...(args?.experimentalNavigationAllowlist
+-        ? {
+-            allowList: zod
+-              .string()
+-              .optional()
+-              .describe(
+-                'Optional comma-separated list of URL patterns to allow. If provided, all other navigations will be blocked.',
+-              ),
+-          }
+-        : {}),
+-      ...timeoutSchema,
+-    },
+-    blockedByDialog: false,
+-    verifyFilesSchema: [],
+-    handler: async (request, response, context) => {
+-      const page = await context.newPage(
+-        request.params.background,
+-        request.params.isolatedContext,
+-      );
+-
+-      await navigateWithInterception(
+-        page,
+-        () =>
+-          page.pptrPage.goto(request.params.url, {
+-            timeout: request.params.timeout,
+-          }),
+-        request.params.allowList,
+-        request.params.timeout,
+-      );
+-
+-      response.setIncludePages(true);
+-      response.setListThirdPartyDeveloperTools();
+-    },
+-  };
+-});
+-
+ export const navigatePage = definePageTool(args => {
+   return {
+     name: 'navigate_page',
+@@ -384,100 +294,6 @@ export const navigatePage = definePageTool(args => {
+   };
+ });
+ 
+-export const resizePage = definePageTool({
+-  name: 'resize_page',
+-  description: `Resizes the selected page's window so that the page has specified dimension`,
+-  annotations: {
+-    category: ToolCategory.EMULATION,
+-    readOnlyHint: false,
+-  },
+-  schema: {
+-    width: zod.number().describe('Page width'),
+-    height: zod.number().describe('Page height'),
+-  },
+-  blockedByDialog: false,
+-  verifyFilesSchema: [],
+-  handler: async (request, response, _context) => {
+-    const page = request.page;
+-
+-    try {
+-      const browser = page.pptrPage.browser();
+-      const windowId = await page.pptrPage.windowId();
+-
+-      const bounds = await browser.getWindowBounds(windowId);
+-
+-      if (bounds.windowState === 'fullscreen') {
+-        // Have to call this twice on Ubuntu when the window is in fullscreen mode.
+-        await browser.setWindowBounds(windowId, {windowState: 'normal'});
+-        await browser.setWindowBounds(windowId, {windowState: 'normal'});
+-      } else if (bounds.windowState !== 'normal') {
+-        await browser.setWindowBounds(windowId, {windowState: 'normal'});
+-      }
+-    } catch {
+-      // Window APIs are not supported on all platforms
+-    }
+-    await page.pptrPage.resize({
+-      contentWidth: request.params.width,
+-      contentHeight: request.params.height,
+-    });
+-
+-    response.setIncludePages(true);
+-  },
+-});
+-
+-export const handleDialog = definePageTool({
+-  name: 'handle_dialog',
+-  description: `If a browser dialog was opened, use this command to handle it`,
+-  annotations: {
+-    category: ToolCategory.INPUT,
+-    readOnlyHint: false,
+-  },
+-  schema: {
+-    action: zod
+-      .enum(['accept', 'dismiss'])
+-      .describe('Whether to dismiss or accept the dialog'),
+-    promptText: zod
+-      .string()
+-      .optional()
+-      .describe('Optional prompt text to enter into the dialog.'),
+-  },
+-  blockedByDialog: false,
+-  verifyFilesSchema: [],
+-  handler: async (request, response, _context) => {
+-    const page = request.page;
+-    const dialog = page.getDialog();
+-    if (!dialog) {
+-      throw new Error('No open dialog found');
+-    }
+-
+-    switch (request.params.action) {
+-      case 'accept': {
+-        try {
+-          await dialog.accept(request.params.promptText);
+-        } catch (err) {
+-          // Likely already handled by the user outside of MCP.
+-          logger?.(err);
+-        }
+-        response.appendResponseLine('Successfully accepted the dialog');
+-        break;
+-      }
+-      case 'dismiss': {
+-        try {
+-          await dialog.dismiss();
+-        } catch (err) {
+-          // Likely already handled.
+-          logger?.(err);
+-        }
+-        response.appendResponseLine('Successfully dismissed the dialog');
+-        break;
+-      }
+-    }
+-
+-    page.clearDialog();
+-    response.setIncludePages(true);
+-  },
+-});
+-
+ export const getTabId = definePageTool({
+   name: 'get_tab_id',
+   description: `Get the tab ID of the page`,
+diff --git a/src/tools/tools.ts b/src/tools/tools.ts
+index 5366f86..1c9457e 100644
+--- a/src/tools/tools.ts
++++ b/src/tools/tools.ts
+@@ -7,14 +7,9 @@
+ import type {ParsedArguments} from '../bin/chrome-devtools-mcp-cli-options.js';
+ 
+ import * as consoleTools from './console.js';
+-import * as emulationTools from './emulation.js';
+-import * as extensionTools from './extensions.js';
+ import * as inputTools from './input.js';
+-import * as lighthouseTools from './lighthouse.js';
+-import * as memoryTools from './memory.js';
+ import * as networkTools from './network.js';
+ import * as pagesTools from './pages.js';
+-import * as performanceTools from './performance.js';
+ import * as screencastTools from './screencast.js';
+ import * as screenshotTools from './screenshot.js';
+ import * as scriptTools from './script.js';
+@@ -29,14 +24,9 @@ export const createTools = (args: ParsedArguments) => {
+     ? Object.values(slimTools)
+     : [
+         ...Object.values(consoleTools),
+-        ...Object.values(emulationTools),
+-        ...Object.values(extensionTools),
+         ...Object.values(inputTools),
+-        ...Object.values(lighthouseTools),
+-        ...Object.values(memoryTools),
+         ...Object.values(networkTools),
+         ...Object.values(pagesTools),
+-        ...Object.values(performanceTools),
+         ...Object.values(screencastTools),
+         ...Object.values(screenshotTools),
+         ...Object.values(scriptTools),
+@@ -50,7 +40,7 @@ export const createTools = (args: ParsedArguments) => {
+     if (typeof tool === 'function') {
+       tools.push(tool(args) as unknown as ToolDefinition);
+     } else {
+-      tools.push(tool as ToolDefinition);
++      tools.push(tool as unknown as ToolDefinition);
+     }
+   }
+ 

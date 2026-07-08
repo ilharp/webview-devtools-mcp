@@ -4,9 +4,77 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- tests/browser.test.ts |  166 -------------------------------------------------
- 1 file changed, 1 insertion(+), 165 deletions(-)
+ tests/McpResponse.test.ts       |   25 -
+ tests/browser.test.ts           |  166 -------
+ tests/network_blocking.test.ts  |  136 ------
+ tests/tools/console.test.ts     |  112 -----
+ tests/tools/emulation.test.ts   |  880 ---------------------------------------
+ tests/tools/extensions.test.ts  |  224 ----------
+ tests/tools/input.test.ts       |  187 --------
+ tests/tools/lighthouse.test.ts  |  189 --------
+ tests/tools/memory.test.ts      |  557 -------------------------
+ tests/tools/pages.test.ts       |  699 -------------------------------
+ tests/tools/performance.test.ts |  573 -------------------------
+ tests/tools/script.test.ts      |   61 ---
+ 12 files changed, 1 insertion(+), 3808 deletions(-)
+ delete mode 100644 tests/tools/emulation.test.ts
+ delete mode 100644 tests/tools/extensions.test.ts
+ delete mode 100644 tests/tools/lighthouse.test.ts
+ delete mode 100644 tests/tools/memory.test.ts
+ delete mode 100644 tests/tools/performance.test.ts
 
+diff --git a/tests/McpResponse.test.ts b/tests/McpResponse.test.ts
+index 6aaf9ed..9c8fe3b 100644
+--- a/tests/McpResponse.test.ts
++++ b/tests/McpResponse.test.ts
+@@ -21,10 +21,8 @@ import type {
+   JSONSchema7Definition,
+ } from '../src/third_party/index.js';
+ import {
+-  closePage,
+   listPages,
+   navigatePage,
+-  newPage,
+   selectPage,
+ } from '../src/tools/pages.js';
+ import type {InsightName} from '../src/trace-processing/parse.js';
+@@ -1174,14 +1172,6 @@ describe('third-party developer tools', () => {
+     }, 'select_page');
+   });
+ 
+-  it('includes third-party developer tools in close_page response', async () => {
+-    await testIncludesThirdPartyDeveloperTools(async (response, context) => {
+-      const pageId =
+-        context.getPageId(context.getSelectedMcpPage().pptrPage) ?? 1;
+-      await closePage.handler({params: {pageId}}, response, context);
+-    }, 'close_page');
+-  });
+-
+   it('includes third-party developer tools in navigate_page response', async () => {
+     await testIncludesThirdPartyDeveloperTools(async (response, context) => {
+       await navigatePage().handler(
+@@ -1194,21 +1184,6 @@ describe('third-party developer tools', () => {
+       );
+     }, 'navigate_page');
+   });
+-
+-  it('includes third-party developer tools in new_page response', async () => {
+-    await testIncludesThirdPartyDeveloperTools(async (response, context) => {
+-      // Workaround to ensure the test environment's new page contain third-party developer tools
+-      sinon.stub(context, 'newPage').resolves(context.getSelectedMcpPage());
+-
+-      await newPage().handler(
+-        {
+-          params: {url: 'about:blank'},
+-        },
+-        response,
+-        context,
+-      );
+-    }, 'new_page');
+-  });
+ });
+ 
+ describe('replaceHtmlElementsWithUids', () => {
 diff --git a/tests/browser.test.ts b/tests/browser.test.ts
 index 3c4ed59..6e331c6 100644
 --- a/tests/browser.test.ts
@@ -189,3 +257,3799 @@ index 3c4ed59..6e331c6 100644
 -    });
 -  });
  });
+diff --git a/tests/network_blocking.test.ts b/tests/network_blocking.test.ts
+index fbc2279..2ef5eb0 100644
+--- a/tests/network_blocking.test.ts
++++ b/tests/network_blocking.test.ts
+@@ -7,8 +7,6 @@
+ import assert from 'node:assert/strict';
+ import {describe, it} from 'node:test';
+ 
+-import {emulate} from '../src/tools/emulation.js';
+-import {lighthouseAudit} from '../src/tools/lighthouse.js';
+ import {navigatePage} from '../src/tools/pages.js';
+ import {evaluateScript} from '../src/tools/script.js';
+ 
+@@ -146,138 +144,4 @@ describe('Network Blocking Integration', () => {
+       },
+     );
+   });
+-
+-  it('respects blocklist after Lighthouse audits', async () => {
+-    server.addHtmlRoute('/allowed.html', '<html><body>Allowed</body></html>');
+-    server.addHtmlRoute('/blocked.html', '<html><body>Blocked</body></html>');
+-
+-    const blockedUrlPattern = [server.getRoute('/blocked.html')];
+-    await withMcpContext(
+-      async (response, context) => {
+-        const allowedUrl = server.getRoute('/allowed.html');
+-        await navigatePage().handler(
+-          {
+-            params: {url: allowedUrl},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(
+-          response.responseLines[0],
+-          `Successfully navigated to ${allowedUrl}.`,
+-        );
+-
+-        const blockedUrl = server.getRoute('/blocked.html');
+-
+-        // Verifies fetch is blocked before Lighthouse audit
+-        response.resetResponseLineForTesting();
+-        await evaluateScript().handler(
+-          {
+-            params: {
+-              function: `async () => {
+-                try {
+-                  await fetch("${blockedUrl}");
+-                  return 'SUCCESS';
+-                } catch (err) {
+-                  return err instanceof Error ? err.message : String(err);
+-                }
+-              }`,
+-            },
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(
+-          JSON.parse(response.responseLines.at(2)!),
+-          'Failed to fetch',
+-          'Fetch should be blocked before audit',
+-        );
+-
+-        await lighthouseAudit.handler(
+-          {
+-            params: {
+-              mode: 'navigation',
+-              device: 'desktop',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.equal(
+-          response.attachedLighthouseResult?.summary.mode,
+-          'navigation',
+-        );
+-
+-        // 2. Verify fetch remains blocked AFTER Lighthouse audit
+-        response.resetResponseLineForTesting();
+-        await evaluateScript().handler(
+-          {
+-            params: {
+-              function: `async () => {
+-                try {
+-                  await fetch("${blockedUrl}");
+-                  return 'SUCCESS';
+-                } catch (err) {
+-                  return err instanceof Error ? err.message : String(err);
+-                }
+-              }`,
+-            },
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(
+-          JSON.parse(response.responseLines.at(2)!),
+-          'Failed to fetch',
+-          'Fetch should still be blocked after audit',
+-        );
+-      },
+-      {
+-        blockedUrlPattern,
+-      },
+-    );
+-  });
+-
+-  it('throws error when trying to emulate network conditions while blocklist is configured', async () => {
+-    const blockedUrlPattern = ['*://*/*'];
+-    await withMcpContext(
+-      async (response, context) => {
+-        // Attempting to emulate network conditions should throw an error.
+-        await assert.rejects(async () => {
+-          await emulate.handler(
+-            {
+-              params: {
+-                networkConditions: 'Offline',
+-              },
+-              page: context.getSelectedMcpPage(),
+-            },
+-            response,
+-            context,
+-          );
+-        }, /Network throttling is not supported when network blocking \(allowlist\/blocklist\) is configured\./);
+-
+-        // Attempting to emulate CPU rate or other things should succeed without errors.
+-        await emulate.handler(
+-          {
+-            params: {
+-              cpuThrottlingRate: 2,
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(
+-          response.responseLines[0],
+-          'Emulation configured successfully',
+-        );
+-      },
+-      {
+-        blockedUrlPattern,
+-      },
+-    );
+-  });
+ });
+diff --git a/tests/tools/console.test.ts b/tests/tools/console.test.ts
+index 7ae59f2..b0e72de 100644
+--- a/tests/tools/console.test.ts
++++ b/tests/tools/console.test.ts
+@@ -5,7 +5,6 @@
+  */
+ 
+ import assert from 'node:assert';
+-import path from 'node:path';
+ import {before, describe, it} from 'node:test';
+ 
+ import type {Dialog} from 'puppeteer-core';
+@@ -14,134 +13,23 @@ import type {ParsedArguments} from '../../src/bin/chrome-devtools-mcp-cli-option
+ import {loadIssueDescriptions} from '../../src/issue-descriptions.js';
+ import {McpResponse} from '../../src/McpResponse.js';
+ import {TextSnapshot} from '../../src/TextSnapshot.js';
+-import type {CdpWebWorker} from '../../src/third_party/index.js';
+ import {DevTools} from '../../src/third_party/index.js';
+ import {
+   getConsoleMessage,
+   listConsoleMessages,
+ } from '../../src/tools/console.js';
+-import {installExtension} from '../../src/tools/extensions.js';
+ import {serverHooks} from '../server.js';
+ import {
+   getTextContent,
+   withMcpContext,
+   stabilizeStructuredContent,
+-  extractExtensionId,
+-  assertNoServiceWorkerReported,
+-  waitExecutionFor,
+ } from '../utils.js';
+ 
+-const EXTENSION_LOGGING_PATH = path.join(
+-  import.meta.dirname,
+-  '../../../tests/tools/fixtures/extension-logging',
+-);
+-
+ describe('console', () => {
+   before(async () => {
+     await loadIssueDescriptions();
+   });
+ 
+-  it('captures logs and errors from extension service worker', async t => {
+-    await withMcpContext(
+-      async (response, context) => {
+-        await installExtension.handler(
+-          {params: {path: EXTENSION_LOGGING_PATH}},
+-          response,
+-          context,
+-        );
+-
+-        const extensionId = extractExtensionId(response);
+-        assert.ok(extensionId, 'Extension ID should be returned');
+-
+-        const swTarget = await context.browser.waitForTarget(
+-          t => t.type() === 'service_worker' && t.url().includes(extensionId),
+-        );
+-
+-        const swList = await context.createExtensionServiceWorkersSnapshot();
+-        const sw = swList.find(s => s.target === swTarget);
+-        assert(sw, 'Service worker not found in context list');
+-
+-        const response2 = new McpResponse({} as ParsedArguments);
+-
+-        await context.triggerExtensionAction(extensionId);
+-        const worker = await swTarget.worker();
+-
+-        const timeout = 10000;
+-        await waitExecutionFor(async () => {
+-          await worker?.evaluate(() => {
+-            if (typeof globalThis.setTimeout !== 'function') {
+-              throw new Error('Not ready');
+-            }
+-          });
+-        }, timeout);
+-
+-        const errorPromise = new Promise((resolve, reject) => {
+-          const timeout = setTimeout(() => {
+-            reject(new Error('Timeout waiting for Service Worker error'));
+-          }, 5000);
+-          (worker as unknown as CdpWebWorker).client.on(
+-            'Runtime.exceptionThrown',
+-            () => {
+-              clearTimeout(timeout);
+-              resolve(undefined);
+-            },
+-          );
+-        });
+-
+-        worker?.evaluate(() => {
+-          globalThis.setTimeout(() => {
+-            throw new Error('Intentional error from Service Worker');
+-          }, 100);
+-        });
+-
+-        await errorPromise;
+-        response2.resetResponseLineForTesting();
+-
+-        await listConsoleMessages({
+-          categoryExtensions: true,
+-        } as ParsedArguments).handler(
+-          {
+-            params: {serviceWorkerId: extensionId},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response2,
+-          context,
+-        );
+-
+-        const formattedResponse = await response2.handle('test', context);
+-        const textContent = getTextContent(formattedResponse.content[0]);
+-
+-        const sanitizedText = textContent.replaceAll(
+-          new RegExp(extensionId, 'g'),
+-          '<extension-id>',
+-        );
+-
+-        t.assert.snapshot?.(sanitizedText);
+-
+-        assert.ok(
+-          sanitizedText.includes('Service Worker starting...'),
+-          'Should contain start log',
+-        );
+-        assert.ok(
+-          sanitizedText.includes('This is a warning from Service Worker'),
+-          'Should contain warning log',
+-        );
+-        assert.ok(
+-          sanitizedText.includes('Intentional error from Service Worker'),
+-          'Should contain error log',
+-        );
+-
+-        await context.uninstallExtension(extensionId);
+-        const targets = context.browser.targets();
+-        assertNoServiceWorkerReported(targets, extensionId);
+-      },
+-      {},
+-      {
+-        categoryExtensions: true,
+-      } as ParsedArguments,
+-    );
+-  });
+-
+   describe('list_console_messages', () => {
+     it('list messages', async () => {
+       await withMcpContext(async (response, context) => {
+diff --git a/tests/tools/emulation.test.ts b/tests/tools/emulation.test.ts
+deleted file mode 100644
+index 09850b9..0000000
+--- a/tests/tools/emulation.test.ts
++++ /dev/null
+@@ -1,880 +0,0 @@
+-/**
+- * @license
+- * Copyright 2025 Google LLC
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-import assert from 'node:assert';
+-import type {IncomingHttpHeaders} from 'node:http';
+-import {beforeEach, describe, it, mock} from 'node:test';
+-
+-import {emulate} from '../../src/tools/emulation.js';
+-import {
+-  geolocationTransform,
+-  viewportTransform,
+-} from '../../src/tools/ToolDefinition.js';
+-import {serverHooks} from '../server.js';
+-import {html, withMcpContext} from '../utils.js';
+-
+-describe('emulation', () => {
+-  const server = serverHooks();
+-
+-  describe('transforms', () => {
+-    describe('viewportTransform', () => {
+-      it('returns undefined for undefined input', () => {
+-        assert.strictEqual(viewportTransform(undefined), undefined);
+-      });
+-
+-      it('parses basic dimensions', () => {
+-        assert.deepStrictEqual(viewportTransform('800x600'), {
+-          width: 800,
+-          height: 600,
+-          deviceScaleFactor: undefined,
+-          isMobile: false,
+-          isLandscape: false,
+-          hasTouch: false,
+-        });
+-      });
+-
+-      it('parses dimensions with devicePixelRatio', () => {
+-        assert.deepStrictEqual(viewportTransform('1024x768x2'), {
+-          width: 1024,
+-          height: 768,
+-          deviceScaleFactor: 2,
+-          isMobile: false,
+-          isLandscape: false,
+-          hasTouch: false,
+-        });
+-      });
+-
+-      it('parses mobile and touch tags', () => {
+-        assert.deepStrictEqual(viewportTransform('375x667x2,mobile,touch'), {
+-          width: 375,
+-          height: 667,
+-          deviceScaleFactor: 2,
+-          isMobile: true,
+-          hasTouch: true,
+-          isLandscape: false,
+-        });
+-      });
+-
+-      it('parses landscape tag', () => {
+-        assert.deepStrictEqual(viewportTransform('1024x768x1,landscape'), {
+-          width: 1024,
+-          height: 768,
+-          deviceScaleFactor: 1,
+-          isMobile: false,
+-          hasTouch: false,
+-          isLandscape: true,
+-        });
+-      });
+-    });
+-
+-    describe('geolocationTransform', () => {
+-      it('returns undefined for undefined input', () => {
+-        assert.strictEqual(geolocationTransform(undefined), undefined);
+-      });
+-
+-      it('parses latitude and longitude', () => {
+-        assert.deepStrictEqual(geolocationTransform('48.137154,11.576124'), {
+-          latitude: 48.137154,
+-          longitude: 11.576124,
+-        });
+-      });
+-    });
+-  });
+-
+-  describe('network', () => {
+-    it('emulates offline network conditions', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              networkConditions: 'Offline',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(
+-          context.getSelectedMcpPage().networkConditions,
+-          'Offline',
+-        );
+-      });
+-    });
+-    it('emulates network throttling when the throttling option is valid', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              networkConditions: 'Slow 3G',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(
+-          context.getSelectedMcpPage().networkConditions,
+-          'Slow 3G',
+-        );
+-      });
+-    });
+-
+-    it('disables network emulation', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(
+-          context.getSelectedMcpPage().networkConditions,
+-          null,
+-        );
+-      });
+-    });
+-
+-    it('does not set throttling when the network throttling is not one of the predefined options', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              networkConditions: 'Slow 11G',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(
+-          context.getSelectedMcpPage().networkConditions,
+-          null,
+-        );
+-      });
+-    });
+-
+-    it('report correctly for the currently selected page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              networkConditions: 'Slow 3G',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(
+-          context.getSelectedMcpPage().networkConditions,
+-          'Slow 3G',
+-        );
+-
+-        const page = await context.newPage();
+-        context.selectPage(page);
+-
+-        assert.strictEqual(
+-          context.getSelectedMcpPage().networkConditions,
+-          null,
+-        );
+-      });
+-    });
+-  });
+-
+-  describe('cpu', () => {
+-    it('emulates cpu throttling when the rate is valid (1-20x)', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              cpuThrottlingRate: 4,
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().cpuThrottlingRate, 4);
+-      });
+-    });
+-
+-    it('applies cpu throttling to secondary session', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const mcpPage = context.getSelectedMcpPage();
+-        const universe = context.getDevToolsUniverse(mcpPage);
+-        assert.ok(universe);
+-
+-        const sendSpy = mock.method(universe.session, 'send');
+-
+-        await emulate.handler(
+-          {
+-            params: {
+-              cpuThrottlingRate: 4,
+-            },
+-            page: mcpPage,
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.ok(sendSpy.mock.calls.length > 0);
+-        const cpuCall = sendSpy.mock.calls.find(
+-          call => call.arguments[0] === 'Emulation.setCPUThrottlingRate',
+-        );
+-        assert.ok(cpuCall);
+-        assert.deepStrictEqual(cpuCall.arguments[1], {rate: 4});
+-
+-        sendSpy.mock.restore();
+-      });
+-    });
+-
+-    it('disables cpu throttling', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await context.emulate({
+-          cpuThrottlingRate: 4,
+-        });
+-        await emulate.handler(
+-          {
+-            params: {
+-              cpuThrottlingRate: 1,
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().cpuThrottlingRate, 1);
+-      });
+-    });
+-
+-    it('report correctly for the currently selected page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              cpuThrottlingRate: 4,
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().cpuThrottlingRate, 4);
+-
+-        const page = await context.newPage();
+-        context.selectPage(page);
+-
+-        assert.strictEqual(context.getSelectedMcpPage().cpuThrottlingRate, 1);
+-      });
+-    });
+-  });
+-
+-  describe('geolocation', () => {
+-    it('emulates geolocation with latitude and longitude', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              geolocation: {
+-                latitude: 48.137154,
+-                longitude: 11.576124,
+-              },
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        const geolocation = context.getSelectedMcpPage().geolocation;
+-        assert.strictEqual(geolocation?.latitude, 48.137154);
+-        assert.strictEqual(geolocation?.longitude, 11.576124);
+-      });
+-    });
+-
+-    it('clears geolocation override when geolocation is set to null', async () => {
+-      await withMcpContext(async (response, context) => {
+-        // First set a geolocation
+-        await emulate.handler(
+-          {
+-            params: {
+-              geolocation: {
+-                latitude: 48.137154,
+-                longitude: 11.576124,
+-              },
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.notStrictEqual(context.getSelectedMcpPage().geolocation, null);
+-
+-        // Then clear it by setting geolocation to null
+-        await emulate.handler(
+-          {
+-            params: {},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().geolocation, null);
+-      });
+-    });
+-
+-    it('reports correctly for the currently selected page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              geolocation: {
+-                latitude: 48.137154,
+-                longitude: 11.576124,
+-              },
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        const geolocation = context.getSelectedMcpPage().geolocation;
+-        assert.strictEqual(geolocation?.latitude, 48.137154);
+-        assert.strictEqual(geolocation?.longitude, 11.576124);
+-
+-        const page = await context.newPage();
+-        context.selectPage(page);
+-
+-        assert.strictEqual(context.getSelectedMcpPage().geolocation, null);
+-      });
+-    });
+-  });
+-  describe('viewport', () => {
+-    beforeEach(() => {
+-      server.addHtmlRoute('/viewport', html`Test page`);
+-    });
+-
+-    it('emulates viewport', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await page.goto(server.baseUrl + '/viewport');
+-        await emulate.handler(
+-          {
+-            params: {
+-              viewport: {
+-                width: 400,
+-                height: 400,
+-                deviceScaleFactor: 2,
+-                isMobile: true,
+-                hasTouch: true,
+-                isLandscape: false,
+-              },
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        const viewportData = await page.evaluate(() => {
+-          return {
+-            width: window.innerWidth,
+-            height: window.innerHeight,
+-            deviceScaleFactor: window.devicePixelRatio,
+-            hasTouch: navigator.maxTouchPoints > 0,
+-          };
+-        });
+-
+-        assert.deepStrictEqual(viewportData, {
+-          width: 400,
+-          height: 400,
+-          deviceScaleFactor: 2,
+-          hasTouch: true,
+-        });
+-      });
+-    });
+-
+-    it('clears viewport override when viewport is set to null', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        // First set a viewport
+-        await emulate.handler(
+-          {
+-            params: {
+-              viewport: {
+-                width: 400,
+-                height: 400,
+-              },
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        const viewportData = await page.evaluate(() => {
+-          return {
+-            width: window.innerWidth,
+-            height: window.innerHeight,
+-          };
+-        });
+-
+-        assert.deepStrictEqual(viewportData, {
+-          width: 400,
+-          height: 400,
+-        });
+-
+-        // Then clear it by setting viewport to null
+-        await emulate.handler(
+-          {
+-            params: {},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().viewport, null);
+-
+-        // Somehow reset of the viewport seems to be async.
+-        await context.getSelectedPptrPage().waitForFunction(() => {
+-          return window.innerWidth !== 400 && window.innerHeight !== 400;
+-        });
+-      });
+-    });
+-
+-    it('reports correctly for the currently selected page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              viewport: {
+-                width: 400,
+-                height: 400,
+-              },
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.ok(context.getSelectedMcpPage().viewport);
+-
+-        const page = await context.newPage();
+-        context.selectPage(page);
+-
+-        assert.strictEqual(context.getSelectedMcpPage().viewport, null);
+-        assert.ok(
+-          await context.getSelectedPptrPage().evaluate(() => {
+-            return window.innerWidth !== 400 && window.innerHeight !== 400;
+-          }),
+-        );
+-      });
+-    });
+-  });
+-
+-  describe('userAgent', () => {
+-    it('emulates userAgent', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              userAgent: 'MyUA',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'MyUA');
+-        const page = context.getSelectedPptrPage();
+-        const ua = await page.evaluate(() => navigator.userAgent);
+-        assert.strictEqual(ua, 'MyUA');
+-      });
+-    });
+-
+-    it('updates userAgent', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              userAgent: 'UA1',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'UA1');
+-
+-        await emulate.handler(
+-          {
+-            params: {
+-              userAgent: 'UA2',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'UA2');
+-        const page = context.getSelectedPptrPage();
+-        const ua = await page.evaluate(() => navigator.userAgent);
+-        assert.strictEqual(ua, 'UA2');
+-      });
+-    });
+-
+-    it('clears userAgent override when userAgent is set to null', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              userAgent: 'MyUA',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'MyUA');
+-
+-        await emulate.handler(
+-          {
+-            params: {},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().userAgent, null);
+-        const page = context.getSelectedPptrPage();
+-        const ua = await page.evaluate(() => navigator.userAgent);
+-        assert.notStrictEqual(ua, 'MyUA');
+-        assert.ok(ua.length > 0);
+-      });
+-    });
+-
+-    it('reports correctly for the currently selected page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              userAgent: 'MyUA',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'MyUA');
+-
+-        const page = await context.newPage();
+-        context.selectPage(page);
+-
+-        assert.strictEqual(context.getSelectedMcpPage().userAgent, null);
+-        assert.ok(
+-          await context.getSelectedPptrPage().evaluate(() => {
+-            return navigator.userAgent !== 'MyUA';
+-          }),
+-        );
+-      });
+-    });
+-  });
+-
+-  describe('extraHttpHeaders', () => {
+-    it('sets extra headers on requests', async () => {
+-      let receivedHeaders: IncomingHttpHeaders = {};
+-      server.addRoute('/headers-test', async (req, res) => {
+-        receivedHeaders = req.headers;
+-        res.writeHead(200, {'Content-Type': 'text/html'});
+-        res.end('<main>Headers Test</main>');
+-      });
+-
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await emulate.handler(
+-          {
+-            params: {
+-              extraHttpHeaders: {'X-Custom-Header': 'test-value'},
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        await page.goto(server.getRoute('/headers-test'));
+-        assert.strictEqual(receivedHeaders['x-custom-header'], 'test-value');
+-      });
+-    });
+-
+-    it('clears extra headers when null is passed', async () => {
+-      let receivedHeaders: IncomingHttpHeaders = {};
+-      server.addRoute('/headers-clear', async (req, res) => {
+-        receivedHeaders = req.headers;
+-        res.writeHead(200, {'Content-Type': 'text/html'});
+-        res.end('<main>Headers Clear</main>');
+-      });
+-
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        // Set headers first
+-        await emulate.handler(
+-          {
+-            params: {
+-              extraHttpHeaders: {'X-To-Clear': 'value'},
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        // Clear headers
+-        await emulate.handler(
+-          {
+-            params: {
+-              extraHttpHeaders: {},
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        await page.goto(server.getRoute('/headers-clear'));
+-        assert.strictEqual(receivedHeaders['x-to-clear'], undefined);
+-        assert.strictEqual(
+-          context.getSelectedMcpPage().emulationSettings.extraHttpHeaders,
+-          undefined,
+-        );
+-      });
+-    });
+-
+-    it('headers persist across navigations', async () => {
+-      const receivedHeaders: IncomingHttpHeaders[] = [];
+-      server.addRoute('/persist-one', async (req, res) => {
+-        receivedHeaders.push({...req.headers});
+-        res.writeHead(200, {'Content-Type': 'text/html'});
+-        res.end('<main>Page One</main>');
+-      });
+-      server.addRoute('/persist-two', async (req, res) => {
+-        receivedHeaders.push({...req.headers});
+-        res.writeHead(200, {'Content-Type': 'text/html'});
+-        res.end('<main>Page Two</main>');
+-      });
+-
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await emulate.handler(
+-          {
+-            params: {
+-              extraHttpHeaders: {'X-Persist': 'yes'},
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        await page.goto(server.getRoute('/persist-one'));
+-        await page.goto(server.getRoute('/persist-two'));
+-
+-        assert.strictEqual(receivedHeaders[0]?.['x-persist'], 'yes');
+-        assert.strictEqual(receivedHeaders[1]?.['x-persist'], 'yes');
+-      });
+-    });
+-
+-    it('does not affect other emulation settings', async () => {
+-      await withMcpContext(async (response, context) => {
+-        // Set userAgent first
+-        await emulate.handler(
+-          {
+-            params: {
+-              userAgent: 'MyUA',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        // Set extraHTTPHeaders separately
+-        await emulate.handler(
+-          {
+-            params: {
+-              extraHttpHeaders: {'X-Test': 'value'},
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        const settings = context.getSelectedMcpPage().emulationSettings;
+-        assert.deepStrictEqual(settings.extraHttpHeaders, {
+-          'X-Test': 'value',
+-        });
+-      });
+-    });
+-
+-    it('reports correctly for the currently selected page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              extraHttpHeaders: {'X-Page': 'one'},
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.deepStrictEqual(
+-          context.getSelectedMcpPage().emulationSettings.extraHttpHeaders,
+-          {'X-Page': 'one'},
+-        );
+-
+-        const page = await context.newPage();
+-        context.selectPage(page);
+-
+-        assert.strictEqual(
+-          context.getSelectedMcpPage().emulationSettings.extraHttpHeaders,
+-          undefined,
+-        );
+-      });
+-    });
+-  });
+-
+-  describe('colorScheme', () => {
+-    it('emulates color scheme', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              colorScheme: 'dark',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'dark');
+-        const page = context.getSelectedPptrPage();
+-        const scheme = await page.evaluate(() =>
+-          window.matchMedia('(prefers-color-scheme: dark)').matches
+-            ? 'dark'
+-            : 'light',
+-        );
+-        assert.strictEqual(scheme, 'dark');
+-      });
+-    });
+-
+-    it('updates color scheme', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await emulate.handler(
+-          {
+-            params: {
+-              colorScheme: 'dark',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'dark');
+-
+-        await emulate.handler(
+-          {
+-            params: {
+-              colorScheme: 'light',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'light');
+-        const page = context.getSelectedPptrPage();
+-        const scheme = await page.evaluate(() =>
+-          window.matchMedia('(prefers-color-scheme: light)').matches
+-            ? 'light'
+-            : 'dark',
+-        );
+-        assert.strictEqual(scheme, 'light');
+-      });
+-    });
+-
+-    it('resets color scheme when set to auto', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-
+-        const initial = await page.evaluate(
+-          () => window.matchMedia('(prefers-color-scheme: dark)').matches,
+-        );
+-
+-        await emulate.handler(
+-          {
+-            params: {
+-              colorScheme: 'dark',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'dark');
+-        // Check manually that it is dark
+-
+-        assert.strictEqual(
+-          await page.evaluate(
+-            () => window.matchMedia('(prefers-color-scheme: dark)').matches,
+-          ),
+-          true,
+-        );
+-
+-        await emulate.handler(
+-          {
+-            params: {
+-              colorScheme: 'auto',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.strictEqual(context.getSelectedMcpPage().colorScheme, null);
+-        assert.strictEqual(
+-          await page.evaluate(
+-            () => window.matchMedia('(prefers-color-scheme: dark)').matches,
+-          ),
+-          initial,
+-        );
+-      });
+-    });
+-  });
+-});
+diff --git a/tests/tools/extensions.test.ts b/tests/tools/extensions.test.ts
+deleted file mode 100644
+index bb0440a..0000000
+--- a/tests/tools/extensions.test.ts
++++ /dev/null
+@@ -1,224 +0,0 @@
+-/**
+- * @license
+- * Copyright 2026 Google LLC
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-import assert from 'node:assert';
+-import path from 'node:path';
+-import {afterEach, describe, it} from 'node:test';
+-
+-import sinon from 'sinon';
+-
+-import type {ParsedArguments} from '../../src/bin/chrome-devtools-mcp-cli-options.js';
+-import {listConsoleMessages} from '../../src/tools/console.js';
+-import {
+-  installExtension,
+-  uninstallExtension,
+-  listExtensions,
+-  reloadExtension,
+-  triggerExtensionAction,
+-} from '../../src/tools/extensions.js';
+-import {serverHooks} from '../server.js';
+-import {
+-  assertNoServiceWorkerReported,
+-  extractExtensionId,
+-  withMcpContext,
+-  html,
+-  getTextContent,
+-} from '../utils.js';
+-
+-const EXTENSION_WITH_SW_PATH = path.join(
+-  import.meta.dirname,
+-  '../../../tests/tools/fixtures/extension-sw',
+-);
+-const EXTENSION_PATH = path.join(
+-  import.meta.dirname,
+-  '../../../tests/tools/fixtures/extension',
+-);
+-const EXTENSION_CONTENT_SCRIPT_PATH = path.join(
+-  import.meta.dirname,
+-  '../../../tests/tools/fixtures/extension-content-script',
+-);
+-
+-describe('extension', () => {
+-  const server = serverHooks();
+-
+-  afterEach(() => {
+-    sinon.restore();
+-  });
+-
+-  it('installs and uninstalls an extension and verifies it in chrome://extensions', async () => {
+-    await withMcpContext(async (response, context) => {
+-      // Install the extension
+-      await installExtension.handler(
+-        {params: {path: EXTENSION_PATH}},
+-        response,
+-        context,
+-      );
+-
+-      const extensionId = extractExtensionId(response);
+-      const page = context.getSelectedPptrPage();
+-      await page.goto('chrome://extensions');
+-
+-      const element = await page.waitForSelector(
+-        `extensions-manager >>> extensions-item[id="${extensionId}"]`,
+-      );
+-      assert.ok(
+-        element,
+-        `Extension with ID "${extensionId}" should be visible on chrome://extensions`,
+-      );
+-
+-      // Uninstall the extension
+-      await uninstallExtension.handler(
+-        {params: {id: extensionId!}},
+-        response,
+-        context,
+-      );
+-
+-      const uninstallResponseLine = response.responseLines[1];
+-      assert.ok(
+-        uninstallResponseLine.includes('Extension uninstalled'),
+-        'Response should indicate uninstallation',
+-      );
+-
+-      await page.waitForSelector('extensions-manager');
+-
+-      const elementAfterUninstall = await page.$(
+-        `extensions-manager >>> extensions-item[id="${extensionId}"]`,
+-      );
+-      assert.strictEqual(
+-        elementAfterUninstall,
+-        null,
+-        `Extension with ID "${extensionId}" should NOT be visible on chrome://extensions`,
+-      );
+-    });
+-  });
+-  it('lists installed extensions', async () => {
+-    await withMcpContext(async (response, context) => {
+-      const setListExtensionsSpy = sinon.spy(response, 'setListExtensions');
+-      await listExtensions.handler({params: {}}, response, context);
+-      assert.ok(
+-        setListExtensionsSpy.calledOnce,
+-        'setListExtensions should be called',
+-      );
+-    });
+-  });
+-  it('reloads an extension', async () => {
+-    await withMcpContext(
+-      async (response, context) => {
+-        await installExtension.handler(
+-          {params: {path: EXTENSION_PATH}},
+-          response,
+-          context,
+-        );
+-
+-        const extensionId = extractExtensionId(response);
+-        const installSpy = sinon.spy(context, 'installExtension');
+-        response.resetResponseLineForTesting();
+-
+-        await reloadExtension.handler(
+-          {params: {id: extensionId!}},
+-          response,
+-          context,
+-        );
+-        assert.ok(
+-          installSpy.calledOnceWithExactly(EXTENSION_PATH),
+-          'installExtension should be called with the extension path',
+-        );
+-
+-        const reloadResponseLine = response.responseLines[0];
+-        assert.ok(
+-          reloadResponseLine.includes('Extension reloaded'),
+-          'Response should indicate reload',
+-        );
+-
+-        const list = Array.from((await context.listExtensions()).values());
+-
+-        assert.ok(list.length === 1, 'List should have only one extension');
+-        const reinstalled = list.find(e => e.id === extensionId);
+-        assert.ok(reinstalled, 'Extension should be present after reload');
+-        await context.uninstallExtension(extensionId!);
+-      },
+-      {},
+-      {
+-        categoryExtensions: true,
+-      },
+-    );
+-  });
+-  it('triggers an extension action', async () => {
+-    await withMcpContext(
+-      async (response, context) => {
+-        const extensionId = await context.installExtension(
+-          EXTENSION_WITH_SW_PATH,
+-        );
+-
+-        const targetsBefore = context.browser.targets();
+-        const pageTargetBefore = targetsBefore.find(
+-          t => t.type() === 'page' && t.url().includes(extensionId),
+-        );
+-        assert.ok(!pageTargetBefore, 'Page should not exist before action');
+-
+-        await triggerExtensionAction.handler(
+-          {params: {id: extensionId}},
+-          response,
+-          context,
+-        );
+-
+-        const pageTargetAfter = await context.browser.waitForTarget(
+-          t => t.type() === 'page' && t.url().includes(extensionId),
+-        );
+-        assert.ok(pageTargetAfter, 'Page should exist after action');
+-        await context.uninstallExtension(extensionId);
+-        const targets = context.browser.targets();
+-        assertNoServiceWorkerReported(targets, extensionId);
+-      },
+-      {},
+-      {
+-        categoryExtensions: true,
+-      },
+-    );
+-  });
+-
+-  it('verifies that content script console logs are received', async () => {
+-    await withMcpContext(
+-      async (response, context) => {
+-        server.addHtmlRoute(
+-          '/test-content-script',
+-          html`<h1>Test Content Script</h1>`,
+-        );
+-        const url = server.getRoute('/test-content-script');
+-
+-        const extensionId = await context.installExtension(
+-          EXTENSION_CONTENT_SCRIPT_PATH,
+-        );
+-
+-        const mcpPage = context.getSelectedMcpPage();
+-        const page = mcpPage.pptrPage;
+-
+-        await page.goto(url);
+-
+-        await listConsoleMessages({
+-          categoryExtensions: true,
+-        } as ParsedArguments).handler(
+-          {params: {includePreservedMessages: true}, page: mcpPage},
+-          response,
+-          context,
+-        );
+-
+-        const result = await response.handle('list_console_messages', context);
+-        const consoleOutput = getTextContent(result.content[0]);
+-        assert.ok(
+-          consoleOutput.includes('from content script!'),
+-          `Console output should contain message from content script. Got: ${consoleOutput}`,
+-        );
+-
+-        await context.uninstallExtension(extensionId);
+-      },
+-      {},
+-      {
+-        categoryExtensions: true,
+-      },
+-    );
+-  });
+-});
+diff --git a/tests/tools/input.test.ts b/tests/tools/input.test.ts
+index 29c81e5..29571f7 100644
+--- a/tests/tools/input.test.ts
++++ b/tests/tools/input.test.ts
+@@ -5,8 +5,6 @@
+  */
+ 
+ import assert from 'node:assert';
+-import fs from 'node:fs/promises';
+-import path from 'node:path';
+ import {describe, it} from 'node:test';
+ 
+ import type {ParsedArguments} from '../../src/bin/chrome-devtools-mcp-cli-options.js';
+@@ -16,9 +14,7 @@ import {
+   click,
+   hover,
+   fill,
+-  drag,
+   fillForm,
+-  uploadFile,
+   pressKey,
+   clickAt,
+   typeText,
+@@ -998,63 +994,6 @@ describe('input', () => {
+     });
+   });
+ 
+-  describe('drags', () => {
+-    it('drags one element onto another', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await page.setContent(
+-          html`<div
+-              role="button"
+-              id="drag"
+-              draggable="true"
+-              >drag me</div
+-            >
+-            <div
+-              id="drop"
+-              aria-label="drop"
+-              style="width: 100px; height: 100px; border: 1px solid black;"
+-              ondrop="this.innerText = 'dropped';"
+-            >
+-            </div>
+-            <script>
+-              drag.addEventListener('dragstart', event => {
+-                event.dataTransfer.setData('text/plain', event.target.id);
+-              });
+-              drop.addEventListener('dragover', event => {
+-                event.preventDefault();
+-                event.dataTransfer.dropEffect = 'move';
+-              });
+-              drop.addEventListener('drop', event => {
+-                event.preventDefault();
+-                const data = event.dataTransfer.getData('text/plain');
+-                event.target.appendChild(document.getElementById(data));
+-              });
+-            </script>`,
+-        );
+-        context.getSelectedMcpPage().textSnapshot = await TextSnapshot.create(
+-          context.getSelectedMcpPage(),
+-        );
+-        await drag.handler(
+-          {
+-            params: {
+-              from_uid: '1_1',
+-              to_uid: '1_2',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.ok(response.includeSnapshot);
+-        assert.strictEqual(
+-          response.responseLines[0],
+-          'Successfully dragged an element',
+-        );
+-        assert.ok(await page.$('text/dropped'));
+-      });
+-    });
+-  });
+-
+   describe('fill form', () => {
+     it('successfully fills out the form', async () => {
+       await withMcpContext(async (response, context) => {
+@@ -1170,132 +1109,6 @@ describe('input', () => {
+     });
+   });
+ 
+-  describe('uploadFile', () => {
+-    it('uploads a file to a file input', async () => {
+-      const testFilePath = path.join(process.cwd(), 'test.txt');
+-      await fs.writeFile(testFilePath, 'test file content');
+-
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await page.setContent(
+-          html`<form>
+-            <input
+-              type="file"
+-              id="file-input"
+-            />
+-          </form>`,
+-        );
+-        context.getSelectedMcpPage().textSnapshot = await TextSnapshot.create(
+-          context.getSelectedMcpPage(),
+-        );
+-        await uploadFile.handler(
+-          {
+-            params: {
+-              uid: '1_2',
+-              filePath: testFilePath,
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.ok(response.includeSnapshot);
+-        assert.strictEqual(
+-          response.responseLines[0],
+-          `File uploaded from ${testFilePath}.`,
+-        );
+-      });
+-
+-      await fs.unlink(testFilePath);
+-    });
+-
+-    it('uploads a file when clicking an element opens a file uploader', async () => {
+-      const testFilePath = path.join(process.cwd(), 'test.txt');
+-      await fs.writeFile(testFilePath, 'test file content');
+-
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await page.setContent(
+-          html`<button id="file-chooser-button">Upload file</button>
+-            <input
+-              type="file"
+-              id="file-input"
+-              style="display: none;"
+-            />
+-            <script>
+-              document
+-                .getElementById('file-chooser-button')
+-                .addEventListener('click', () => {
+-                  document.getElementById('file-input').click();
+-                });
+-            </script>`,
+-        );
+-        context.getSelectedMcpPage().textSnapshot = await TextSnapshot.create(
+-          context.getSelectedMcpPage(),
+-        );
+-        await uploadFile.handler(
+-          {
+-            params: {
+-              uid: '1_1',
+-              filePath: testFilePath,
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.ok(response.includeSnapshot);
+-        assert.strictEqual(
+-          response.responseLines[0],
+-          `File uploaded from ${testFilePath}.`,
+-        );
+-        const uploadedFileName = await page.$eval('#file-input', el => {
+-          const input = el as HTMLInputElement;
+-          return input.files?.[0]?.name;
+-        });
+-        assert.strictEqual(uploadedFileName, 'test.txt');
+-
+-        await fs.unlink(testFilePath);
+-      });
+-    });
+-
+-    it('throws an error if the element is not a file input and does not open a file chooser', async () => {
+-      const testFilePath = path.join(process.cwd(), 'test.txt');
+-      await fs.writeFile(testFilePath, 'test file content');
+-
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await page.setContent(html`<div>Not a file input</div>`);
+-        context.getSelectedMcpPage().textSnapshot = await TextSnapshot.create(
+-          context.getSelectedMcpPage(),
+-        );
+-
+-        await assert.rejects(
+-          uploadFile.handler(
+-            {
+-              params: {
+-                uid: '1_1',
+-                filePath: testFilePath,
+-              },
+-              page: context.getSelectedMcpPage(),
+-            },
+-            response,
+-            context,
+-          ),
+-          {
+-            message:
+-              'Failed to upload file. The element could not accept the file directly, and clicking it did not trigger a file chooser.',
+-          },
+-        );
+-
+-        assert.strictEqual(response.responseLines.length, 0);
+-        assert.strictEqual(response.snapshotParams, undefined);
+-
+-        await fs.unlink(testFilePath);
+-      });
+-    });
+-  });
+-
+   describe('press_key', () => {
+     it('parses keys', () => {
+       assert.deepStrictEqual(parseKey('Shift+A'), ['A', 'Shift']);
+diff --git a/tests/tools/lighthouse.test.ts b/tests/tools/lighthouse.test.ts
+deleted file mode 100644
+index 4b7dce7..0000000
+--- a/tests/tools/lighthouse.test.ts
++++ /dev/null
+@@ -1,189 +0,0 @@
+-/**
+- * @license
+- * Copyright 2025 Google LLC
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-import assert from 'node:assert/strict';
+-import fs from 'node:fs/promises';
+-import os from 'node:os';
+-import path from 'node:path';
+-import {describe, it} from 'node:test';
+-
+-import {lighthouseAudit} from '../../src/tools/lighthouse.js';
+-import {serverHooks} from '../server.js';
+-import {html, withMcpContext} from '../utils.js';
+-
+-describe('lighthouse', () => {
+-  const server = serverHooks();
+-  describe('lighthouse_audit', () => {
+-    it('runs Lighthouse audit by default (navigation, desktop)', async () => {
+-      server.addHtmlRoute('/test', html`<div>Test</div>`);
+-
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await page.goto(server.getRoute('/test'));
+-
+-        await lighthouseAudit.handler(
+-          {
+-            params: {
+-              mode: 'navigation',
+-              device: 'desktop',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        const data = response.attachedLighthouseResult;
+-        assert.ok(data);
+-
+-        assert.ok(data.summary);
+-        assert.equal(data.summary.mode, 'navigation');
+-        assert.equal(data.summary.device, 'desktop');
+-        assert.ok(data.reports.length === 2); // json, html
+-
+-        // Verify files exist
+-        for (const reportPath of data.reports) {
+-          const stats = await fs.stat(reportPath);
+-          assert.ok(stats.isFile());
+-        }
+-      });
+-    });
+-
+-    it('restores emulation', async () => {
+-      server.addHtmlRoute('/test-mobile', html`<div>Test Mobile</div>`);
+-
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await page.goto(server.getRoute('/test-mobile'));
+-        await context.emulate({
+-          viewport: {
+-            width: 400,
+-            height: 400,
+-            deviceScaleFactor: 1,
+-            hasTouch: true,
+-          },
+-        });
+-
+-        {
+-          const viewportData = await page.evaluate(() => {
+-            return {
+-              width: window.innerWidth,
+-              height: window.innerHeight,
+-              deviceScaleFactor: window.devicePixelRatio,
+-              hasTouch: navigator.maxTouchPoints > 0,
+-            };
+-          });
+-
+-          assert.deepStrictEqual(viewportData, {
+-            width: 400,
+-            height: 400,
+-            deviceScaleFactor: 1,
+-            hasTouch: true,
+-          });
+-        }
+-
+-        await lighthouseAudit.handler(
+-          {
+-            params: {
+-              mode: 'snapshot',
+-              device: 'mobile',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        {
+-          const viewportData = await page.evaluate(() => {
+-            return {
+-              width: window.innerWidth,
+-              height: window.innerHeight,
+-              deviceScaleFactor: window.devicePixelRatio,
+-              hasTouch: navigator.maxTouchPoints > 0,
+-            };
+-          });
+-
+-          assert.deepStrictEqual(viewportData, {
+-            width: 400,
+-            height: 400,
+-            deviceScaleFactor: 1,
+-            hasTouch: true,
+-          });
+-        }
+-      });
+-    });
+-
+-    it('runs Lighthouse in snapshot mode with mobile device', async () => {
+-      server.addHtmlRoute('/test-mobile', html`<div>Test Mobile</div>`);
+-
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await page.goto(server.getRoute('/test-mobile'));
+-
+-        await lighthouseAudit.handler(
+-          {
+-            params: {
+-              mode: 'snapshot',
+-              device: 'mobile',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        const data = response.attachedLighthouseResult;
+-        assert.ok(data);
+-
+-        assert.equal(data.summary.mode, 'snapshot');
+-        assert.equal(data.summary.device, 'mobile');
+-        assert.ok(data.reports.length === 2);
+-      });
+-    });
+-
+-    it('runs Lighthouse with custom output dir', async () => {
+-      server.addHtmlRoute('/test-mobile', html`<div>Test Mobile</div>`);
+-
+-      const tmpDir = os.tmpdir();
+-      const folderPath = path.join(
+-        tmpDir,
+-        `temp-folder-${crypto.randomUUID()}`,
+-      );
+-
+-      try {
+-        await withMcpContext(async (response, context) => {
+-          const page = context.getSelectedPptrPage();
+-          await page.goto(server.getRoute('/test-mobile'));
+-
+-          await lighthouseAudit.handler(
+-            {
+-              params: {
+-                mode: 'snapshot',
+-                device: 'mobile',
+-                outputDirPath: folderPath,
+-              },
+-              page: context.getSelectedMcpPage(),
+-            },
+-            response,
+-            context,
+-          );
+-
+-          const data = response.attachedLighthouseResult;
+-          assert.ok(data);
+-          assert.equal(data.summary.mode, 'snapshot');
+-          assert.equal(data.summary.device, 'mobile');
+-          assert.ok(data.reports.length === 2);
+-          for (const report of data.reports) {
+-            assert.ok(report.startsWith(folderPath));
+-          }
+-        });
+-      } finally {
+-        await fs.rm(folderPath, {recursive: true, force: true});
+-      }
+-    });
+-  });
+-});
+diff --git a/tests/tools/memory.test.ts b/tests/tools/memory.test.ts
+deleted file mode 100644
+index 0e8538c..0000000
+--- a/tests/tools/memory.test.ts
++++ /dev/null
+@@ -1,557 +0,0 @@
+-/**
+- * @license
+- * Copyright 2026 Google LLC
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-import assert from 'node:assert';
+-import {existsSync} from 'node:fs';
+-import {rm} from 'node:fs/promises';
+-import {tmpdir} from 'node:os';
+-import {join} from 'node:path';
+-import {describe, it} from 'node:test';
+-
+-import {
+-  takeHeapSnapshot,
+-  getHeapSnapshotSummary,
+-  getHeapSnapshotDetails,
+-  getHeapSnapshotClassNodes,
+-  getHeapSnapshotRetainers,
+-  closeHeapSnapshot,
+-  getHeapSnapshotRetainingPaths,
+-  getHeapSnapshotEdges,
+-  getHeapSnapshotDominators,
+-  compareHeapSnapshots,
+-  getHeapSnapshotDuplicateStrings,
+-} from '../../src/tools/memory.js';
+-import {withMcpContext} from '../utils.js';
+-
+-describe('memory', () => {
+-  describe('take_heapsnapshot', () => {
+-    it('with default options', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(tmpdir(), 'test-screenshot.heapsnapshot');
+-        try {
+-          await takeHeapSnapshot.handler(
+-            {params: {filePath}, page: context.getSelectedMcpPage()},
+-            response,
+-            context,
+-          );
+-          assert.equal(
+-            response.responseLines.at(0),
+-            `Heap snapshot saved to ${filePath}`,
+-          );
+-          assert.ok(existsSync(filePath));
+-        } finally {
+-          await rm(filePath, {force: true});
+-        }
+-      });
+-    });
+-  });
+-
+-  describe('get_heapsnapshot_summary', () => {
+-    it('with default options', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        assert.ok(existsSync(filePath), `Fixture not found at ${filePath}`);
+-
+-        await getHeapSnapshotSummary.handler(
+-          {params: {filePath}},
+-          response,
+-          context,
+-        );
+-
+-        // Call handle to trigger formatting (similar to network tests)
+-        const responseData = await response.handle(
+-          getHeapSnapshotSummary.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-  });
+-
+-  describe('get_heapsnapshot_details', () => {
+-    it('with default options', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotDetails.handler(
+-          {params: {filePath}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotDetails.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-  });
+-
+-  describe('get_heapsnapshot_class_nodes', () => {
+-    it('with default options', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await context.getHeapSnapshotAggregates(filePath);
+-
+-        await getHeapSnapshotClassNodes.handler(
+-          {params: {filePath, id: 19}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotClassNodes.name,
+-          context,
+-        );
+-
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-
+-    it('with non-existent class name', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await context.getHeapSnapshotAggregates(filePath);
+-
+-        await assert.rejects(
+-          getHeapSnapshotClassNodes.handler(
+-            {params: {filePath, id: 999999}},
+-            response,
+-            context,
+-          ),
+-          {message: 'Class with ID 999999 not found in heap snapshot'},
+-        );
+-      });
+-    });
+-  });
+-
+-  describe('get_heapsnapshot_retainers', () => {
+-    it('with valid nodeId', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotRetainers.handler(
+-          {params: {filePath, nodeId: 25341}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotRetainers.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-  });
+-
+-  describe('close_heapsnapshot', () => {
+-    it('with default options', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotSummary.handler(
+-          {params: {filePath}},
+-          response,
+-          context,
+-        );
+-
+-        assert.ok(context.hasHeapSnapshots());
+-
+-        await closeHeapSnapshot.handler(
+-          {params: {filePath}},
+-          response,
+-          context,
+-        );
+-
+-        assert.ok(
+-          response.responseLines.includes(`Closed heap snapshot: ${filePath}`),
+-        );
+-        assert.ok(!context.hasHeapSnapshots());
+-      });
+-    });
+-
+-    it('with non-existent snapshot', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await assert.rejects(
+-          closeHeapSnapshot.handler({params: {filePath}}, response, context),
+-          {
+-            message: `Failed to close heap snapshot: ${filePath} was not loaded.`,
+-          },
+-        );
+-      });
+-    });
+-  });
+-
+-  describe('get_heapsnapshot_retaining_paths', () => {
+-    it('with valid nodeId', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotRetainingPaths.handler(
+-          {params: {filePath, nodeId: 45901}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotRetainingPaths.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-
+-    it('reports when limits are reached', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotRetainingPaths.handler(
+-          {params: {filePath, nodeId: 45901, maxDepth: 1}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotRetainingPaths.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        assert.match(output, /No retaining paths found\./);
+-        assert.match(
+-          output,
+-          /Note: results are truncated, the following limits were reached: depth\./,
+-        );
+-      });
+-    });
+-  });
+-
+-  describe('get_heapsnapshot_edges', () => {
+-    it('with valid nodeId', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotEdges.handler(
+-          {params: {filePath, nodeId: 25341}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotEdges.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-
+-    it('with pagination', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotEdges.handler(
+-          {params: {filePath, nodeId: 25341, pageSize: 2}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotEdges.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-  });
+-
+-  describe('get_heapsnapshot_dominators', () => {
+-    it('with valid nodeId', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotDominators.handler(
+-          {params: {filePath, nodeId: 25341}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotDominators.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-  });
+-
+-  describe('compare_heapsnapshots', () => {
+-    it('compare heap-1 to heap-2', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePathA = join(
+-          process.cwd(),
+-          'tests/fixtures/heap-1.heapsnapshot',
+-        );
+-        const filePathB = join(
+-          process.cwd(),
+-          'tests/fixtures/heap-2.heapsnapshot',
+-        );
+-
+-        await compareHeapSnapshots.handler(
+-          {params: {baseFilePath: filePathA, currentFilePath: filePathB}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          compareHeapSnapshots.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-
+-    it('compare heap-2 to heap-3', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePathA = join(
+-          process.cwd(),
+-          'tests/fixtures/heap-2.heapsnapshot',
+-        );
+-        const filePathB = join(
+-          process.cwd(),
+-          'tests/fixtures/heap-3.heapsnapshot',
+-        );
+-
+-        await compareHeapSnapshots.handler(
+-          {params: {baseFilePath: filePathA, currentFilePath: filePathB}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          compareHeapSnapshots.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-
+-    it('compare heap-1 to heap-2 with classIndex filter', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePathA = join(
+-          process.cwd(),
+-          'tests/fixtures/heap-1.heapsnapshot',
+-        );
+-        const filePathB = join(
+-          process.cwd(),
+-          'tests/fixtures/heap-2.heapsnapshot',
+-        );
+-
+-        await compareHeapSnapshots.handler(
+-          {
+-            params: {
+-              baseFilePath: filePathA,
+-              currentFilePath: filePathB,
+-              classIndex: 2, // NewObject
+-            },
+-          },
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          compareHeapSnapshots.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-
+-    it('compare heap-1 to heap-2 with invalid classIndex throws error', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const filePathA = join(
+-          process.cwd(),
+-          'tests/fixtures/heap-1.heapsnapshot',
+-        );
+-        const filePathB = join(
+-          process.cwd(),
+-          'tests/fixtures/heap-2.heapsnapshot',
+-        );
+-
+-        await assert.rejects(
+-          compareHeapSnapshots.handler(
+-            {
+-              params: {
+-                baseFilePath: filePathA,
+-                currentFilePath: filePathB,
+-                classIndex: 99,
+-              },
+-            },
+-            response,
+-            context,
+-          ),
+-          /Invalid classIndex: 99. Total classes with changes: 10/,
+-        );
+-      });
+-    });
+-  });
+-
+-  // Verifies that the caching mechanism in HeapSnapshotManager correctly
+-  // distinguishes comparisons when the same "current" snapshot is compared
+-  // against different "base" snapshots. If the cache key (diffCacheKey) is
+-  // not unique per base snapshot, the second comparison might incorrectly
+-  // return cached results from the first comparison.
+-  it('compares the same current snapshot against different bases', async () => {
+-    await withMcpContext(async (_response, context) => {
+-      const filePathA = join(
+-        process.cwd(),
+-        'tests/fixtures/heap-1.heapsnapshot',
+-      );
+-      const filePathB = join(
+-        process.cwd(),
+-        'tests/fixtures/heap-2.heapsnapshot',
+-      );
+-      const filePathC = join(
+-        process.cwd(),
+-        'tests/fixtures/heap-3.heapsnapshot',
+-      );
+-
+-      const firstDiff = await context.getHeapSnapshotClassDiffs(
+-        filePathA,
+-        filePathC,
+-      );
+-      const secondDiff = await context.getHeapSnapshotClassDiffs(
+-        filePathB,
+-        filePathC,
+-      );
+-      const firstNewObjectDiff = firstDiff.find(
+-        entry => entry.className === 'NewObject',
+-      );
+-      const secondNewObjectDiff = secondDiff.find(
+-        entry => entry.className === 'NewObject',
+-      );
+-      assert.ok(firstNewObjectDiff);
+-      assert.ok(secondNewObjectDiff);
+-      assert.equal(firstNewObjectDiff.addedCount, 7);
+-      assert.equal(secondNewObjectDiff.addedCount, 5);
+-    });
+-  });
+-
+-  describe('get_heapsnapshot_duplicate_strings', () => {
+-    it('with default options', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotDuplicateStrings.handler(
+-          {params: {filePath}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotDuplicateStrings.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-  });
+-});
+diff --git a/tests/tools/pages.test.ts b/tests/tools/pages.test.ts
+index 038532f..2574a1d 100644
+--- a/tests/tools/pages.test.ts
++++ b/tests/tools/pages.test.ts
+@@ -14,12 +14,8 @@ import sinon from 'sinon';
+ import type {ParsedArguments} from '../../src/bin/chrome-devtools-mcp-cli-options.js';
+ import {
+   listPages,
+-  newPage,
+-  closePage,
+   selectPage,
+   navigatePage,
+-  resizePage,
+-  handleDialog,
+   getTabId,
+ } from '../../src/tools/pages.js';
+ import {assertNoServiceWorkerReported, html, withMcpContext} from '../utils.js';
+@@ -230,284 +226,7 @@ describe('pages', () => {
+       });
+     });
+   });
+-  describe('new_page', () => {
+-    it('create a page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        assert.strictEqual(
+-          context.getPageById(1),
+-          context.getSelectedMcpPage(),
+-        );
+-        await newPage().handler(
+-          {params: {url: 'about:blank'}},
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(
+-          context.getPageById(2),
+-          context.getSelectedMcpPage(),
+-        );
+-        assert.ok(response.includePages);
+-      });
+-    });
+-    it('create a page in the background', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const originalPage = context.getPageById(1);
+-        assert.strictEqual(originalPage, context.getSelectedMcpPage());
+-        // Ensure original page has focus
+-        await originalPage.pptrPage.bringToFront();
+-        assert.strictEqual(
+-          await originalPage.pptrPage.evaluate(() => document.hasFocus()),
+-          true,
+-        );
+-        await newPage().handler(
+-          {params: {url: 'about:blank', background: true}},
+-          response,
+-          context,
+-        );
+-        // New page should be selected but original should retain focus
+-        assert.strictEqual(
+-          context.getPageById(2),
+-          context.getSelectedMcpPage(),
+-        );
+-        assert.strictEqual(
+-          await originalPage.pptrPage.evaluate(() => document.hasFocus()),
+-          true,
+-        );
+-        assert.ok(response.includePages);
+-      });
+-    });
+-  });
+-  describe('new_page with isolatedContext', () => {
+-    it('creates a page in an isolated context', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await newPage().handler(
+-          {params: {url: 'about:blank', isolatedContext: 'session-a'}},
+-          response,
+-          context,
+-        );
+-        const page = context.getSelectedPptrPage();
+-        assert.strictEqual(context.getIsolatedContextName(page), 'session-a');
+-        assert.ok(response.includePages);
+-      });
+-    });
+-
+-    it('reuses the same context for the same isolatedContext name', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await newPage().handler(
+-          {params: {url: 'about:blank', isolatedContext: 'session-a'}},
+-          response,
+-          context,
+-        );
+-        const page1 = context.getSelectedPptrPage();
+-        await newPage().handler(
+-          {params: {url: 'about:blank', isolatedContext: 'session-a'}},
+-          response,
+-          context,
+-        );
+-        const page2 = context.getSelectedPptrPage();
+-        assert.notStrictEqual(page1, page2);
+-        assert.strictEqual(context.getIsolatedContextName(page1), 'session-a');
+-        assert.strictEqual(context.getIsolatedContextName(page2), 'session-a');
+-        assert.strictEqual(page1.browserContext(), page2.browserContext());
+-      });
+-    });
+-
+-    it('creates separate contexts for different isolatedContext names', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await newPage().handler(
+-          {params: {url: 'about:blank', isolatedContext: 'session-a'}},
+-          response,
+-          context,
+-        );
+-        const pageA = context.getSelectedPptrPage();
+-        await newPage().handler(
+-          {params: {url: 'about:blank', isolatedContext: 'session-b'}},
+-          response,
+-          context,
+-        );
+-        const pageB = context.getSelectedPptrPage();
+-        assert.strictEqual(context.getIsolatedContextName(pageA), 'session-a');
+-        assert.strictEqual(context.getIsolatedContextName(pageB), 'session-b');
+-        assert.notStrictEqual(pageA.browserContext(), pageB.browserContext());
+-      });
+-    });
+-
+-    it('includes isolatedContext in page listing', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await newPage().handler(
+-          {params: {url: 'about:blank', isolatedContext: 'session-a'}},
+-          response,
+-          context,
+-        );
+-        const result = await response.handle('new_page', context);
+-        const pages = (
+-          result.structuredContent as {pages: Array<{isolatedContext?: string}>}
+-        ).pages;
+-        const isolatedPage = pages.find(p => p.isolatedContext === 'session-a');
+-        assert.ok(isolatedPage);
+-      });
+-    });
+-
+-    it('does not set isolatedContext for pages in the default context', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        assert.strictEqual(context.getIsolatedContextName(page), undefined);
+-        await newPage().handler(
+-          {params: {url: 'about:blank'}},
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(
+-          context.getIsolatedContextName(context.getSelectedPptrPage()),
+-          undefined,
+-        );
+-      });
+-    });
+-
+-    it('closes an isolated page without errors', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await newPage().handler(
+-          {params: {url: 'about:blank', isolatedContext: 'session-a'}},
+-          response,
+-          context,
+-        );
+-        const page = context.getSelectedPptrPage();
+-        const pageId = context.getPageId(page)!;
+-        assert.ok(!page.isClosed());
+-        await closePage.handler({params: {pageId}}, response, context);
+-        assert.ok(page.isClosed());
+-      });
+-    });
+-
+-    it('when dialog is open', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-
+-        const dialogPromise = new Promise<Dialog>(resolve => {
+-          page.on('dialog', dialog => {
+-            resolve(dialog);
+-          });
+-        });
+-
+-        const evalPromise = page.evaluate(() => {
+-          alert('test dialog');
+-        });
+-        const dialog = await dialogPromise;
+-
+-        await newPage().handler(
+-          {params: {url: 'about:blank'}},
+-          response,
+-          context,
+-        );
+ 
+-        const result = await response.handle('new_page', context);
+-        t.assert.snapshot(JSON.stringify(result));
+-        await dialog.dismiss();
+-        await evalPromise;
+-      });
+-    });
+-  });
+-
+-  it('navigate_page targets the pageId page, not the global selection', async () => {
+-    await withMcpContext(async (response, context) => {
+-      await newPage().handler(
+-        {
+-          params: {
+-            url: 'data:text/html,<h1>Initial</h1>',
+-            isolatedContext: 'nav-ctx',
+-          },
+-        },
+-        response,
+-        context,
+-      );
+-      const isolatedPage = context.getSelectedMcpPage();
+-
+-      // Switch global selection back to the default page.
+-      await selectPage.handler({params: {pageId: 1}}, response, context);
+-      assert.notStrictEqual(context.getSelectedMcpPage(), isolatedPage);
+-
+-      // Navigate using page; should target the isolated page.
+-      await navigatePage().handler(
+-        {
+-          params: {
+-            url: 'data:text/html,<h1>Navigated</h1>',
+-          },
+-          page: isolatedPage,
+-        },
+-        response,
+-        context,
+-      );
+-
+-      // Verify the isolated page was navigated.
+-      const content = await isolatedPage.pptrPage.evaluate(
+-        () => document.querySelector('h1')?.textContent,
+-      );
+-      assert.strictEqual(content, 'Navigated');
+-
+-      // Verify the default page was NOT affected.
+-      const defaultContent = await context
+-        .getSelectedPptrPage()
+-        .evaluate(() => document.querySelector('h1')?.textContent);
+-      assert.notStrictEqual(defaultContent, 'Navigated');
+-    });
+-  });
+-
+-  describe('close_page', () => {
+-    it('closes a page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = await context.newPage();
+-        assert.strictEqual(
+-          context.getPageById(2),
+-          context.getSelectedMcpPage(),
+-        );
+-        assert.strictEqual(context.getPageById(2), page);
+-        await closePage.handler({params: {pageId: 2}}, response, context);
+-        assert.ok(page.pptrPage.isClosed());
+-        assert.ok(response.includePages);
+-      });
+-    });
+-    it('cannot close the last page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        await closePage.handler({params: {pageId: 1}}, response, context);
+-        assert.deepStrictEqual(
+-          response.responseLines[0],
+-          `The last open page cannot be closed. It is fine to keep it open.`,
+-        );
+-        assert.ok(response.includePages);
+-        assert.ok(!page.isClosed());
+-      });
+-    });
+-
+-    it('when dialog is open', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const page = await context.newPage();
+-        assert.strictEqual(
+-          context.getPageById(2),
+-          context.getSelectedMcpPage(),
+-        );
+-        assert.strictEqual(context.getPageById(2), page);
+-
+-        const dialogPromise = new Promise<void>(resolve => {
+-          page.pptrPage.on('dialog', () => resolve());
+-        });
+-
+-        page.pptrPage
+-          .evaluate(() => {
+-            alert('test dialog');
+-          })
+-          .catch(() => {
+-            // Ignore TargetCloseError when page is closed with open dialog
+-          });
+-        await dialogPromise;
+-
+-        await closePage.handler({params: {pageId: 2}}, response, context);
+-
+-        const result = await response.handle('close_page', context);
+-        t.assert.snapshot(JSON.stringify(result));
+-      });
+-    });
+-  });
+   describe('select_page', () => {
+     it('selects a page', async () => {
+       await withMcpContext(async (response, context) => {
+@@ -551,50 +270,6 @@ describe('pages', () => {
+         assert.ok(response.includePages);
+       });
+     });
+-    it('preserves focus across different browser contexts', async () => {
+-      await withMcpContext(async (response, context) => {
+-        // Create pages in separate isolated contexts.
+-        await newPage().handler(
+-          {params: {url: 'about:blank', isolatedContext: 'ctx-a'}},
+-          response,
+-          context,
+-        );
+-        const pageA = context.getSelectedPptrPage();
+-        const pageAId = context.getPageId(pageA)!;
+-
+-        await newPage().handler(
+-          {params: {url: 'about:blank', isolatedContext: 'ctx-b'}},
+-          response,
+-          context,
+-        );
+-        const pageB = context.getSelectedPptrPage();
+-
+-        // Selecting pageB (ctx-b) should not defocus pageA (ctx-a).
+-        assert.strictEqual(
+-          await pageA.evaluate(() => document.hasFocus()),
+-          true,
+-        );
+-        assert.strictEqual(
+-          await pageB.evaluate(() => document.hasFocus()),
+-          true,
+-        );
+-
+-        // Switching back to pageA should preserve pageB's focus.
+-        await selectPage.handler(
+-          {params: {pageId: pageAId}},
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(
+-          await pageA.evaluate(() => document.hasFocus()),
+-          true,
+-        );
+-        assert.strictEqual(
+-          await pageB.evaluate(() => document.hasFocus()),
+-          true,
+-        );
+-      });
+-    });
+ 
+     it('when dialog is open', async t => {
+       await withMcpContext(async (response, context) => {
+@@ -898,380 +573,6 @@ describe('pages', () => {
+       });
+     });
+   });
+-  describe('resize', () => {
+-    it('resize the page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        const resizePromise = page.evaluate(() => {
+-          return new Promise(resolve => {
+-            window.addEventListener('resize', resolve, {once: true});
+-          });
+-        });
+-        await resizePage.handler(
+-          {
+-            params: {width: 700, height: 500},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        await resizePromise;
+-        await page.waitForFunction(
+-          () => window.innerWidth === 700 && window.innerHeight === 500,
+-        );
+-        const dimensions = await page.evaluate(() => {
+-          return [window.innerWidth, window.innerHeight];
+-        });
+-        assert.deepStrictEqual(dimensions, [700, 500]);
+-      });
+-    });
+-
+-    it('resize when window state is normal', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        const browser = page.browser();
+-        const windowId = await page.windowId();
+-        await browser.setWindowBounds(windowId, {windowState: 'normal'});
+-
+-        const {windowState} = await browser.getWindowBounds(windowId);
+-        assert.strictEqual(windowState, 'normal');
+-
+-        const resizePromise = page.evaluate(() => {
+-          return new Promise(resolve => {
+-            window.addEventListener('resize', resolve, {once: true});
+-          });
+-        });
+-        await resizePage.handler(
+-          {
+-            params: {width: 650, height: 450},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        await resizePromise;
+-        await page.waitForFunction(
+-          () => window.innerWidth === 650 && window.innerHeight === 450,
+-        );
+-        const dimensions = await page.evaluate(() => {
+-          return [window.innerWidth, window.innerHeight];
+-        });
+-        assert.deepStrictEqual(dimensions, [650, 450]);
+-      });
+-    });
+-
+-    it('resize when window state is minimized', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        const browser = page.browser();
+-        const windowId = await page.windowId();
+-        await browser.setWindowBounds(windowId, {windowState: 'minimized'});
+-
+-        const {windowState} = await browser.getWindowBounds(windowId);
+-        assert.strictEqual(windowState, 'minimized');
+-
+-        const resizePromise = page.evaluate(() => {
+-          return new Promise(resolve => {
+-            window.addEventListener('resize', resolve, {once: true});
+-          });
+-        });
+-        await resizePage.handler(
+-          {
+-            params: {width: 750, height: 550},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        await resizePromise;
+-        await page.waitForFunction(
+-          () => window.innerWidth === 750 && window.innerHeight === 550,
+-        );
+-        const dimensions = await page.evaluate(() => {
+-          return [window.innerWidth, window.innerHeight];
+-        });
+-        assert.deepStrictEqual(dimensions, [750, 550]);
+-      });
+-    });
+-
+-    it('resize when window state is maximized', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        const browser = page.browser();
+-        const windowId = await page.windowId();
+-        await browser.setWindowBounds(windowId, {windowState: 'maximized'});
+-
+-        const {windowState} = await browser.getWindowBounds(windowId);
+-        assert.strictEqual(windowState, 'maximized');
+-
+-        const resizePromise = page.evaluate(() => {
+-          return new Promise(resolve => {
+-            window.addEventListener('resize', resolve, {once: true});
+-          });
+-        });
+-        await resizePage.handler(
+-          {
+-            params: {width: 725, height: 525},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        await resizePromise;
+-        await page.waitForFunction(
+-          () => window.innerWidth === 725 && window.innerHeight === 525,
+-        );
+-        const dimensions = await page.evaluate(() => {
+-          return [window.innerWidth, window.innerHeight];
+-        });
+-        assert.deepStrictEqual(dimensions, [725, 525]);
+-      });
+-    });
+-
+-    it('resize when window state is fullscreen', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        const browser = page.browser();
+-        const windowId = await page.windowId();
+-        await browser.setWindowBounds(windowId, {windowState: 'fullscreen'});
+-
+-        const {windowState} = await browser.getWindowBounds(windowId);
+-        assert.strictEqual(windowState, 'fullscreen');
+-
+-        const resizePromise = page.evaluate(() => {
+-          return new Promise(resolve => {
+-            window.addEventListener('resize', resolve, {once: true});
+-          });
+-        });
+-        await resizePage.handler(
+-          {
+-            params: {width: 850, height: 650},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        await resizePromise;
+-        await page.waitForFunction(
+-          () => window.innerWidth === 850 && window.innerHeight === 650,
+-        );
+-        const dimensions = await page.evaluate(() => {
+-          return [window.innerWidth, window.innerHeight];
+-        });
+-        assert.deepStrictEqual(dimensions, [850, 650]);
+-      });
+-    });
+-
+-    it('when dialog is open', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        const dialogPromise = new Promise<Dialog>(resolve => {
+-          page.on('dialog', dialog => {
+-            resolve(dialog);
+-          });
+-        });
+-
+-        const evalPromise = page.evaluate(() => {
+-          alert('test dialog');
+-        });
+-        const dialog = await dialogPromise;
+-
+-        await resizePage.handler(
+-          {
+-            params: {width: 1600, height: 1400},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        const result = await response.handle('resize_page', context);
+-        t.assert.snapshot(JSON.stringify(result));
+-        await dialog.dismiss();
+-        await evalPromise;
+-      });
+-    });
+-  });
+-
+-  describe('dialogs', () => {
+-    it('can accept dialogs', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        const dialogPromise = new Promise<void>(resolve => {
+-          page.on('dialog', () => {
+-            resolve();
+-          });
+-        });
+-        const evalPromise = page.evaluate(() => {
+-          alert('test');
+-        });
+-        await dialogPromise;
+-        await handleDialog.handler(
+-          {
+-            params: {
+-              action: 'accept',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(context.getSelectedMcpPage().getDialog(), undefined);
+-        assert.strictEqual(
+-          response.responseLines[0],
+-          'Successfully accepted the dialog',
+-        );
+-        await evalPromise;
+-      });
+-    });
+-    it('can dismiss dialogs', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        const dialogPromise = new Promise<void>(resolve => {
+-          page.on('dialog', () => {
+-            resolve();
+-          });
+-        });
+-        const evalPromise = page.evaluate(() => {
+-          alert('test');
+-        });
+-        await dialogPromise;
+-        await handleDialog.handler(
+-          {
+-            params: {
+-              action: 'dismiss',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(context.getSelectedMcpPage().getDialog(), undefined);
+-        assert.strictEqual(
+-          response.responseLines[0],
+-          'Successfully dismissed the dialog',
+-        );
+-        await evalPromise;
+-      });
+-    });
+-    it('can dismiss already dismissed dialog dialogs', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page = context.getSelectedPptrPage();
+-        const dialogPromise = new Promise<Dialog>(resolve => {
+-          page.on('dialog', dialog => {
+-            resolve(dialog);
+-          });
+-        });
+-        const evalPromise = page.evaluate(() => {
+-          alert('test');
+-        });
+-        const dialog = await dialogPromise;
+-        await dialog.dismiss();
+-        await handleDialog.handler(
+-          {
+-            params: {
+-              action: 'dismiss',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(context.getSelectedMcpPage().getDialog(), undefined);
+-        assert.strictEqual(
+-          response.responseLines[0],
+-          'Successfully dismissed the dialog',
+-        );
+-        await evalPromise;
+-      });
+-    });
+-    it('can handle a dialog on a non-selected page via pageId', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page1 = context.getSelectedMcpPage();
+-        await context.newPage(); // page2 is now selected
+-
+-        const dialogPromise = new Promise<void>(resolve => {
+-          page1.pptrPage.once('dialog', () => {
+-            resolve();
+-          });
+-        });
+-        const evalPromise = page1.pptrPage.evaluate(() => {
+-          alert('test');
+-        });
+-        await dialogPromise;
+-
+-        // page1 is not selected, but its dialog should be accessible via page.
+-        await handleDialog.handler(
+-          {
+-            params: {
+-              action: 'accept',
+-            },
+-            page: page1,
+-          },
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(page1.getDialog(), undefined);
+-        assert.strictEqual(
+-          response.responseLines[0],
+-          'Successfully accepted the dialog',
+-        );
+-        await evalPromise;
+-      });
+-    });
+-    it('tracks dialogs independently per page', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const page1 = context.getSelectedMcpPage();
+-        await context.newPage();
+-        const page2 = context.getSelectedMcpPage();
+-
+-        // Trigger dialog on page1.
+-        const dialog1Promise = new Promise<void>(resolve => {
+-          page1.pptrPage.once('dialog', () => {
+-            resolve();
+-          });
+-        });
+-        const eval1Promise = page1.pptrPage.evaluate(() => {
+-          alert('dialog1');
+-        });
+-        await dialog1Promise;
+-
+-        // Trigger dialog on page2.
+-        const dialog2Promise = new Promise<void>(resolve => {
+-          page2.pptrPage.once('dialog', () => {
+-            resolve();
+-          });
+-        });
+-        const eval2Promise = page2.pptrPage.evaluate(() => {
+-          alert('dialog2');
+-        });
+-        await dialog2Promise;
+-
+-        // Both dialogs should be tracked.
+-        assert.ok(page1.getDialog());
+-        assert.ok(page2.getDialog());
+-
+-        // Handle page1's dialog; page2's should remain.
+-        await handleDialog.handler(
+-          {params: {action: 'accept'}, page: page1},
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(page1.getDialog(), undefined);
+-        assert.ok(page2.getDialog());
+-
+-        // Handle page2's dialog.
+-        await handleDialog.handler(
+-          {params: {action: 'dismiss'}, page: page2},
+-          response,
+-          context,
+-        );
+-        assert.strictEqual(page2.getDialog(), undefined);
+-
+-        await Promise.all([eval1Promise, eval2Promise]);
+-      });
+-    });
+-  });
+ 
+   describe('get_tab_id', () => {
+     it('returns the tab id', async () => {
+diff --git a/tests/tools/performance.test.ts b/tests/tools/performance.test.ts
+deleted file mode 100644
+index b9d1c78..0000000
+--- a/tests/tools/performance.test.ts
++++ /dev/null
+@@ -1,573 +0,0 @@
+-/**
+- * @license
+- * Copyright 2025 Google LLC
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-import assert from 'node:assert';
+-import {describe, it, afterEach, beforeEach} from 'node:test';
+-import zlib from 'node:zlib';
+-
+-import sinon from 'sinon';
+-
+-import {
+-  analyzeInsight,
+-  startTrace,
+-  stopTrace,
+-} from '../../src/tools/performance.js';
+-import type {TraceResult} from '../../src/trace-processing/parse.js';
+-import {
+-  parseRawTraceBuffer,
+-  traceResultIsSuccess,
+-} from '../../src/trace-processing/parse.js';
+-import {loadTraceAsBuffer} from '../trace-processing/fixtures/load.js';
+-import {withMcpContext} from '../utils.js';
+-
+-describe('performance', () => {
+-  afterEach(() => {
+-    sinon.restore();
+-  });
+-
+-  beforeEach(() => {
+-    sinon.stub(globalThis, 'fetch').callsFake(async url => {
+-      const cruxEndpoint =
+-        'https://chromeuxreport.googleapis.com/v1/records:queryRecord';
+-      if (url.toString().startsWith(cruxEndpoint)) {
+-        return new Response(JSON.stringify(cruxResponseFixture()), {
+-          status: 200,
+-          headers: {'Content-Type': 'application/json'},
+-        });
+-      }
+-      throw new Error(`Unexpected fetch to ${url}`);
+-    });
+-  });
+-
+-  describe('performance_start_trace', () => {
+-    it('starts a trace recording', async () => {
+-      await withMcpContext(async (response, context) => {
+-        context.setIsRunningPerformanceTrace(false);
+-        const selectedPage = context.getSelectedPptrPage();
+-        const startTracingStub = sinon.stub(selectedPage.tracing, 'start');
+-        await startTrace.handler(
+-          {
+-            params: {reload: true, autoStop: false},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        sinon.assert.calledOnce(startTracingStub);
+-        assert.ok(context.isRunningPerformanceTrace());
+-        assert.ok(
+-          response.responseLines
+-            .join('\n')
+-            .match(/The performance trace is being recorded/),
+-        );
+-      });
+-    });
+-
+-    it('can navigate to about:blank and record a page reload', async () => {
+-      await withMcpContext(async (response, context) => {
+-        const selectedPage = context.getSelectedPptrPage();
+-        sinon.stub(selectedPage, 'url').callsFake(() => 'https://www.test.com');
+-        const gotoStub = sinon.stub(selectedPage, 'goto');
+-        const startTracingStub = sinon.stub(selectedPage.tracing, 'start');
+-        await startTrace.handler(
+-          {
+-            params: {reload: true, autoStop: false},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        sinon.assert.calledOnce(startTracingStub);
+-        sinon.assert.calledWithExactly(gotoStub, 'about:blank', {
+-          waitUntil: ['networkidle0'],
+-        });
+-        sinon.assert.calledWithExactly(gotoStub, 'https://www.test.com', {
+-          waitUntil: ['load'],
+-        });
+-        assert.ok(context.isRunningPerformanceTrace());
+-        assert.ok(
+-          response.responseLines
+-            .join('\n')
+-            .match(/The performance trace is being recorded/),
+-        );
+-      });
+-    });
+-
+-    it('can autostop and store a recording', async () => {
+-      const rawData = loadTraceAsBuffer('basic-trace.json.gz');
+-
+-      await withMcpContext(async (response, context) => {
+-        const selectedPage = context.getSelectedPptrPage();
+-        sinon.stub(selectedPage, 'url').callsFake(() => 'https://www.test.com');
+-        sinon.stub(selectedPage, 'goto').callsFake(() => Promise.resolve(null));
+-        const startTracingStub = sinon.stub(selectedPage.tracing, 'start');
+-        const stopTracingStub = sinon
+-          .stub(selectedPage.tracing, 'stop')
+-          .callsFake(() => {
+-            return Promise.resolve(rawData);
+-          });
+-
+-        const clock = sinon.useFakeTimers();
+-        const handlerPromise = startTrace.handler(
+-          {
+-            params: {reload: true, autoStop: true},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        // In the handler we wait 5 seconds after the page load event (which is
+-        // what DevTools does), hence we now fake-progress time to allow
+-        // the handler to complete. We allow extra time because the Trace
+-        // Engine also uses some timers to yield updates and we need those to
+-        // execute.
+-        await clock.tickAsync(6_000);
+-        await handlerPromise;
+-        clock.restore();
+-
+-        sinon.assert.calledOnce(startTracingStub);
+-        sinon.assert.calledOnce(stopTracingStub);
+-        assert.strictEqual(
+-          context.isRunningPerformanceTrace(),
+-          false,
+-          'Tracing was stopped',
+-        );
+-        assert.strictEqual(context.recordedTraces().length, 1);
+-        assert.ok(
+-          response.responseLines
+-            .join('\n')
+-            .match(/The performance trace has been stopped/),
+-        );
+-      });
+-    });
+-
+-    it('errors if a recording is already active', async () => {
+-      await withMcpContext(async (response, context) => {
+-        context.setIsRunningPerformanceTrace(true);
+-        const selectedPage = context.getSelectedPptrPage();
+-        const startTracingStub = sinon.stub(selectedPage.tracing, 'start');
+-        await startTrace.handler(
+-          {
+-            params: {reload: true, autoStop: false},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        sinon.assert.notCalled(startTracingStub);
+-        assert.ok(
+-          response.responseLines
+-            .join('\n')
+-            .match(/a performance trace is already running/),
+-        );
+-      });
+-    });
+-
+-    it('supports filePath', async () => {
+-      const rawData = loadTraceAsBuffer('basic-trace.json.gz');
+-      // rawData is the decompressed buffer (based on loadTraceAsBuffer implementation).
+-      // We want to simulate saving it as a .gz file, so the tool should compress it.
+-      const expectedCompressedData = zlib.gzipSync(rawData);
+-
+-      await withMcpContext(async (response, context) => {
+-        const filePath = 'test-trace.json.gz';
+-        const selectedPage = context.getSelectedPptrPage();
+-        sinon.stub(selectedPage, 'url').callsFake(() => 'https://www.test.com');
+-        sinon.stub(selectedPage, 'goto').callsFake(() => Promise.resolve(null));
+-        sinon.stub(selectedPage.tracing, 'start');
+-        sinon.stub(selectedPage.tracing, 'stop').resolves(rawData);
+-        const saveFileStub = sinon
+-          .stub(context, 'saveFile')
+-          .resolves({filename: filePath});
+-
+-        const handlerPromise = startTrace.handler(
+-          {
+-            params: {reload: true, autoStop: true, filePath},
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        // In the handler we wait 5 seconds after the page load event (which is
+-        // what DevTools does), hence we now fake-progress time to allow
+-        // the handler to complete. We allow extra time because the Trace
+-        // Engine also uses some timers to yield updates and we need those to
+-        // execute.
+-        await handlerPromise;
+-
+-        assert.ok(
+-          response.responseLines.includes(
+-            `The raw trace data was saved to ${filePath}.`,
+-          ),
+-        );
+-        sinon.assert.calledOnce(saveFileStub);
+-        const [savedData, savedPath] = saveFileStub.firstCall.args;
+-        assert.strictEqual(savedPath, filePath);
+-        // Compare the saved data with expected compressed data
+-        // We can't compare buffers directly with strictEqual easily if they are different instances, but deepStrictEqual works for Buffers.
+-        assert.deepStrictEqual(savedData, expectedCompressedData);
+-      });
+-    });
+-  });
+-
+-  describe('performance_analyze_insight', () => {
+-    async function parseTrace(fileName: string): Promise<TraceResult> {
+-      const rawData = loadTraceAsBuffer(fileName);
+-      const result = await parseRawTraceBuffer(rawData);
+-      if (!traceResultIsSuccess(result)) {
+-        assert.fail(`Unexpected trace parse error: ${result.error}`);
+-      }
+-      return result;
+-    }
+-
+-    it('returns the information on the insight', async () => {
+-      const trace = await parseTrace('web-dev-with-commit.json.gz');
+-      await withMcpContext(async (response, context) => {
+-        context.storeTraceRecording(trace);
+-        context.setIsRunningPerformanceTrace(false);
+-
+-        await analyzeInsight.handler(
+-          {
+-            params: {
+-              insightSetId: 'NAVIGATION_0',
+-              insightName: 'LCPBreakdown',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-
+-        assert.ok(response.attachedTracedInsight);
+-      });
+-    });
+-
+-    it('returns an error if no trace has been recorded', async () => {
+-      await withMcpContext(async (response, context) => {
+-        await analyzeInsight.handler(
+-          {
+-            params: {
+-              insightSetId: '8463DF94CD61B265B664E7F768183DE3',
+-              insightName: 'LCPBreakdown',
+-            },
+-            page: context.getSelectedMcpPage(),
+-          },
+-          response,
+-          context,
+-        );
+-        assert.ok(
+-          response.responseLines
+-            .join('\n')
+-            .match(
+-              /No recorded traces found. Record a performance trace so you have Insights to analyze./,
+-            ),
+-        );
+-      });
+-    });
+-  });
+-
+-  describe('performance_stop_trace', () => {
+-    it('does nothing if the trace is not running and does not error', async () => {
+-      await withMcpContext(async (response, context) => {
+-        context.setIsRunningPerformanceTrace(false);
+-        const selectedPage = context.getSelectedPptrPage();
+-        const stopTracingStub = sinon.stub(selectedPage.tracing, 'stop');
+-        await stopTrace.handler(
+-          {params: {}, page: context.getSelectedMcpPage()},
+-          response,
+-          context,
+-        );
+-        sinon.assert.notCalled(stopTracingStub);
+-        assert.strictEqual(context.isRunningPerformanceTrace(), false);
+-      });
+-    });
+-
+-    it('will stop the trace and return trace info when a trace is running', async () => {
+-      const rawData = loadTraceAsBuffer('basic-trace.json.gz');
+-      await withMcpContext(async (response, context) => {
+-        context.setIsRunningPerformanceTrace(true);
+-        const selectedPage = context.getSelectedPptrPage();
+-        const stopTracingStub = sinon
+-          .stub(selectedPage.tracing, 'stop')
+-          .callsFake(async () => {
+-            return rawData;
+-          });
+-        await stopTrace.handler(
+-          {params: {}, page: context.getSelectedMcpPage()},
+-          response,
+-          context,
+-        );
+-        assert.ok(
+-          response.responseLines.includes(
+-            'The performance trace has been stopped.',
+-          ),
+-        );
+-        assert.strictEqual(context.recordedTraces().length, 1);
+-        sinon.assert.calledOnce(stopTracingStub);
+-      });
+-    });
+-
+-    it('throws an error if parsing the trace buffer fails', async () => {
+-      await withMcpContext(async (response, context) => {
+-        context.setIsRunningPerformanceTrace(true);
+-        const selectedPage = context.getSelectedPptrPage();
+-        sinon
+-          .stub(selectedPage.tracing, 'stop')
+-          .returns(Promise.resolve(undefined));
+-
+-        await assert.rejects(
+-          stopTrace.handler(
+-            {params: {}, page: context.getSelectedMcpPage()},
+-            response,
+-            context,
+-          ),
+-          /There was an unexpected error parsing the trace/,
+-        );
+-      });
+-    });
+-
+-    it('supports filePath', async () => {
+-      const rawData = loadTraceAsBuffer('basic-trace.json.gz');
+-      await withMcpContext(async (response, context) => {
+-        const filePath = 'test-trace.json';
+-        context.setIsRunningPerformanceTrace(true);
+-        const selectedPage = context.getSelectedPptrPage();
+-        const stopTracingStub = sinon
+-          .stub(selectedPage.tracing, 'stop')
+-          .resolves(rawData);
+-        const saveFileStub = sinon
+-          .stub(context, 'saveFile')
+-          .resolves({filename: filePath});
+-
+-        await stopTrace.handler(
+-          {params: {filePath}, page: context.getSelectedMcpPage()},
+-          response,
+-          context,
+-        );
+-
+-        sinon.assert.calledOnce(stopTracingStub);
+-        sinon.assert.calledOnce(saveFileStub);
+-        sinon.assert.calledWith(saveFileStub, rawData, filePath);
+-        assert.ok(
+-          response.responseLines.includes(
+-            `The raw trace data was saved to ${filePath}.`,
+-          ),
+-        );
+-      });
+-    });
+-
+-    it('does not fetch CrUX data if performanceCrux is false', async () => {
+-      const rawData = loadTraceAsBuffer('basic-trace.json.gz');
+-      await withMcpContext(
+-        async (response, context) => {
+-          context.setIsRunningPerformanceTrace(true);
+-          const selectedPage = context.getSelectedPptrPage();
+-          sinon.stub(selectedPage.tracing, 'stop').resolves(rawData);
+-
+-          await stopTrace.handler(
+-            {params: {}, page: context.getSelectedMcpPage()},
+-            response,
+-            context,
+-          );
+-
+-          const cruxEndpoint =
+-            'https://chromeuxreport.googleapis.com/v1/records:queryRecord';
+-          const cruxCall = (globalThis.fetch as sinon.SinonStub)
+-            .getCalls()
+-            .find(call => call.args[0].toString().startsWith(cruxEndpoint));
+-          assert.strictEqual(
+-            cruxCall,
+-            undefined,
+-            'CrUX fetch should not have been called',
+-          );
+-        },
+-        {performanceCrux: false},
+-      );
+-    });
+-
+-    it('fetches CrUX data for desktop and includes it in the summary', async () => {
+-      const rawData = loadTraceAsBuffer('web-dev-with-commit.json.gz');
+-      await withMcpContext(async (response, context) => {
+-        context.setIsRunningPerformanceTrace(true);
+-        const selectedPage = context.getSelectedPptrPage();
+-        sinon.stub(selectedPage.tracing, 'stop').resolves(rawData);
+-
+-        const fetchStub = globalThis.fetch as sinon.SinonStub;
+-        fetchStub.resetHistory();
+-        fetchStub.callsFake(async (url, options) => {
+-          const body = options?.body ? JSON.parse(options.body as string) : {};
+-          const requestedUrl = body.url || body.origin || 'https://web.dev/';
+-          const lcp = body.formFactor === 'DESKTOP' ? 1000 : 2595;
+-          return new Response(
+-            JSON.stringify(cruxResponseFixture(requestedUrl, lcp)),
+-            {
+-              status: 200,
+-              headers: {'Content-Type': 'application/json'},
+-            },
+-          );
+-        });
+-
+-        await stopTrace.handler(
+-          {params: {}, page: context.getSelectedMcpPage()},
+-          response,
+-          context,
+-        );
+-
+-        const result = await response.handle('performance_stop_trace', context);
+-        const fullOutput = result.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        assert.ok(fetchStub.called, 'CrUX fetch should have been called');
+-        assert.ok(
+-          fullOutput.includes('Metrics (field / real users)'),
+-          'Summary should include field data',
+-        );
+-        assert.ok(
+-          fullOutput.includes('LCP: 1000 ms'),
+-          'Summary should include desktop LCP value',
+-        );
+-      });
+-    });
+-
+-    it('fetches CrUX data for mobile and includes it in the summary', async () => {
+-      const rawData = loadTraceAsBuffer('web-dev-with-commit.json.gz');
+-      // Use a unique URL to avoid cache issues
+-      const jsonString = new TextDecoder().decode(rawData);
+-      const modifiedJsonString = jsonString.replaceAll(
+-        'https://web.dev/',
+-        'https://mobile.web.dev/',
+-      );
+-      const modifiedData = new TextEncoder().encode(modifiedJsonString);
+-
+-      await withMcpContext(async (response, context) => {
+-        context.setIsRunningPerformanceTrace(true);
+-        const selectedPage = context.getSelectedPptrPage();
+-        sinon.stub(selectedPage.tracing, 'stop').resolves(modifiedData);
+-
+-        // Emulate mobile
+-        await context.emulate({
+-          viewport: {
+-            width: 375,
+-            height: 667,
+-            isMobile: true,
+-            hasTouch: true,
+-            deviceScaleFactor: 2,
+-          },
+-        });
+-
+-        const fetchStub = globalThis.fetch as sinon.SinonStub;
+-        fetchStub.resetHistory();
+-        fetchStub.callsFake(async (url, options) => {
+-          const body = options?.body ? JSON.parse(options.body as string) : {};
+-          const requestedUrl = body.url || body.origin || 'https://web.dev/';
+-          const lcp = body.formFactor === 'PHONE' ? 2000 : 2595;
+-          return new Response(
+-            JSON.stringify(cruxResponseFixture(requestedUrl, lcp)),
+-            {
+-              status: 200,
+-              headers: {'Content-Type': 'application/json'},
+-            },
+-          );
+-        });
+-
+-        await stopTrace.handler(
+-          {params: {}, page: context.getSelectedMcpPage()},
+-          response,
+-          context,
+-        );
+-
+-        const result = await response.handle('performance_stop_trace', context);
+-        const fullOutput = result.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        assert.ok(fetchStub.called, 'CrUX fetch should have been called');
+-        assert.ok(
+-          fullOutput.includes('Metrics (field / real users)'),
+-          'Summary should include field data',
+-        );
+-        assert.ok(
+-          fullOutput.includes('LCP: 2000 ms'),
+-          'Summary should include mobile LCP value',
+-        );
+-      });
+-    });
+-  });
+-});
+-
+-function cruxResponseFixture(url = 'https://web.dev/', lcp = 2595) {
+-  // Ideally we could use `mockResponse` from 'chrome-devtools-frontend/front_end/models/crux-manager/CrUXManager.test.ts'
+-  // But test files are not published in the cdtf npm package.
+-  return {
+-    record: {
+-      key: {
+-        url,
+-      },
+-      metrics: {
+-        form_factors: {
+-          fractions: {desktop: 0.5056, phone: 0.4796, tablet: 0.0148},
+-        },
+-        largest_contentful_paint: {
+-          histogram: [
+-            {start: 0, end: 2500, density: 0.7309},
+-            {start: 2500, end: 4000, density: 0.163},
+-            {start: 4000, density: 0.1061},
+-          ],
+-          percentiles: {p75: lcp},
+-        },
+-        largest_contentful_paint_image_element_render_delay: {
+-          percentiles: {p75: 786},
+-        },
+-        largest_contentful_paint_image_resource_load_delay: {
+-          percentiles: {p75: 86},
+-        },
+-        largest_contentful_paint_image_time_to_first_byte: {
+-          percentiles: {p75: 1273},
+-        },
+-        cumulative_layout_shift: {
+-          histogram: [
+-            {start: '0.00', end: '0.10', density: 0.8665},
+-            {start: '0.10', end: '0.25', density: 0.0716},
+-            {start: '0.25', density: 0.0619},
+-          ],
+-          percentiles: {p75: '0.06'},
+-        },
+-        interaction_to_next_paint: {
+-          histogram: [
+-            {start: 0, end: 200, density: 0.8414},
+-            {start: 200, end: 500, density: 0.1081},
+-            {start: 500, density: 0.0505},
+-          ],
+-          percentiles: {p75: 140},
+-        },
+-        largest_contentful_paint_image_resource_load_duration: {
+-          percentiles: {p75: 451},
+-        },
+-        round_trip_time: {
+-          histogram: [
+-            {start: 0, end: 75, density: 0.3663},
+-            {start: 75, end: 275, density: 0.5089},
+-            {start: 275, density: 0.1248},
+-          ],
+-          percentiles: {p75: 178},
+-        },
+-        first_contentful_paint: {
+-          histogram: [
+-            {start: 0, end: 1800, density: 0.5899},
+-            {start: 1800, end: 3000, density: 0.2439},
+-            {start: 3000, density: 0.1662},
+-          ],
+-          percentiles: {p75: 2425},
+-        },
+-      },
+-      collectionPeriod: {
+-        firstDate: {year: 2025, month: 12, day: 8},
+-        lastDate: {year: 2026, month: 1, day: 4},
+-      },
+-    },
+-  };
+-}
+diff --git a/tests/tools/script.test.ts b/tests/tools/script.test.ts
+index 1302586..27637fb 100644
+--- a/tests/tools/script.test.ts
++++ b/tests/tools/script.test.ts
+@@ -5,26 +5,17 @@
+  */
+ 
+ import assert from 'node:assert';
+-import path from 'node:path';
+ import {describe, it} from 'node:test';
+ 
+ import type {ParsedArguments} from '../../src/bin/chrome-devtools-mcp-cli-options.js';
+ import {TextSnapshot} from '../../src/TextSnapshot.js';
+-import {installExtension} from '../../src/tools/extensions.js';
+ import {evaluateScript} from '../../src/tools/script.js';
+ import {serverHooks} from '../server.js';
+ import {
+-  assertNoServiceWorkerReported,
+-  extractExtensionId,
+   html,
+   withMcpContext,
+ } from '../utils.js';
+ 
+-const EXTENSION_PATH = path.join(
+-  import.meta.dirname,
+-  '../../../tests/tools/fixtures/extension-sw',
+-);
+-
+ describe('script', () => {
+   const server = serverHooks();
+ 
+@@ -308,58 +299,6 @@ describe('script', () => {
+         await rm(filePath, {force: true});
+       }
+     });
+-    it('evaluates inside extension service worker', async () => {
+-      await withMcpContext(
+-        async (response, context) => {
+-          await installExtension.handler(
+-            {params: {path: EXTENSION_PATH}},
+-            response,
+-            context,
+-          );
+-
+-          const extensionId = extractExtensionId(response);
+-          const swTarget = await context.browser.waitForTarget(
+-            t => t.type() === 'service_worker' && t.url().includes(extensionId),
+-          );
+-
+-          await context.createExtensionServiceWorkersSnapshot();
+-          const swList = context.getExtensionServiceWorkers();
+-          const sw = swList.find(s => s.target === swTarget);
+-
+-          if (!sw) {
+-            assert.fail('Service worker not found in context list');
+-          }
+-
+-          const swId = context.getExtensionServiceWorkerId(sw);
+-
+-          await context.triggerExtensionAction(extensionId);
+-
+-          response.resetResponseLineForTesting();
+-          await evaluateScript({
+-            categoryExtensions: true,
+-          } as ParsedArguments).handler(
+-            {
+-              params: {
+-                function: String(() => {
+-                  return 'chrome' in globalThis ? 'has-chrome' : 'no-chrome';
+-                }),
+-                serviceWorkerId: swId,
+-              },
+-            },
+-            response,
+-            context,
+-          );
+-
+-          const lineEvaluation = response.responseLines.at(2)!;
+-          assert.strictEqual(JSON.parse(lineEvaluation), 'has-chrome');
+-          await context.uninstallExtension(extensionId);
+-          const targets = context.browser.targets();
+-          assertNoServiceWorkerReported(targets, extensionId);
+-        },
+-        {},
+-        {categoryExtensions: true},
+-      );
+-    });
+ 
+     it('throws error when both pageId and serviceWorkerId are provided', async () => {
+       await withMcpContext(
