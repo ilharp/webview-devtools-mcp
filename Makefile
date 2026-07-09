@@ -41,12 +41,12 @@ build-chii: build-chobitsu
 
 .PHONY: build-cdmcp
 build-cdmcp:
-	yarn workspace chrome-devtools-mcp prepare
-	yarn workspace chrome-devtools-mcp bundle
+	yarn workspace webview-devtools-mcp prepare
+	yarn workspace webview-devtools-mcp bundle
 
 .PHONY: cdmcp-gen
 cdmcp-gen:
-	yarn workspace chrome-devtools-mcp gen
+	yarn workspace webview-devtools-mcp gen
 
 .PHONY: npm-pack
 npm-pack:
