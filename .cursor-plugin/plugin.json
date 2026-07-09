@@ -1,0 +1,18 @@
+{
+  "name": "webview-devtools-mcp",
+  "description": "DevTools for any WebView — no remote-debugging port required. Works in Safari/iOS WebView/Lark Web App and more.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Il Harper"
+  },
+  "homepage": "https://github.com/ilharp/webview-devtools-mcp",
+  "repository": "https://github.com/ilharp/webview-devtools-mcp",
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "webview-devtools-mcp@0.1.0"
+      ]
+    }
+  }
+}
