@@ -12,16 +12,8 @@ ci: stg-import .WAIT build .WAIT cdmcp-gen .WAIT build-cdmcp .WAIT copy-chobitsu
 
 .PHONY: stg-import
 stg-import:
-	cd packages/chobitsu
-	git checkout master
-	stg init
-	stg import -S ../../patches/chobitsu/series
-	cd ../..
-	cd packages/chrome-devtools-mcp
-	git checkout main
-	stg init
-	stg import -S ../../patches/chrome-devtools-mcp/series
-	cd ../..
+	cd packages/chobitsu && git checkout master && stg init && stg import -S ../../patches/chobitsu/series
+	cd packages/chrome-devtools-mcp && git checkout main && stg init && stg import -S ../../patches/chrome-devtools-mcp/series
 
 .PHONY: install-deps
 install-deps:
@@ -50,9 +42,7 @@ cdmcp-gen:
 
 .PHONY: npm-pack
 npm-pack:
-	cd packages/chrome-devtools-mcp
-	yarn pack --out build/webview-devtools-mcp.tgz
-	cd ../..
+	cd packages/chrome-devtools-mcp && yarn pack --out build/webview-devtools-mcp.tgz
 
 .PHONY: copy-chobitsu-dist
 copy-chobitsu-dist:
