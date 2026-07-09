@@ -1,4 +1,4 @@
-# WebView DevTools CLI
+# webview-devtools CLI
 
 The `webview-devtools-mcp` package includes an **experimental** CLI interface for inspecting and automating an already-instrumented WebView or web page from your terminal. It is useful for debugging, smoke tests, and scripts that need to call the same tools exposed through the MCP server.
 
@@ -6,11 +6,11 @@ The CLI does not launch a browser or create a WebView for you. It starts or talk
 
 ## Getting started
 
-Install the package globally to make the `chrome-devtools` command available:
+Install the package globally to make the `webview-devtools` command available:
 
 ```sh
 npm i webview-devtools-mcp@latest -g
-chrome-devtools status # check if install worked.
+webview-devtools status # check if install worked.
 ```
 
 ## How it works
