@@ -8,7 +8,7 @@
   "homepage": "https://github.com/ilharp/webview-devtools-mcp",
   "repository": "https://github.com/ilharp/webview-devtools-mcp",
   "mcpServers": {
-    "chrome-devtools": {
+    "webview-devtools": {
       "command": "npx",
       "args": [
         "webview-devtools-mcp@0.1.0"

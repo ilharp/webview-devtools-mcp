@@ -1,0 +1,13 @@
+{
+  "name": "webview-devtools-mcp",
+  "version": "0.1.0",
+  "description": "DevTools for any WebView — no remote-debugging port required. Works in Safari/iOS WebView/Lark Web App and more.",
+  "mcpServers": {
+    "webview-devtools": {
+      "command": "npx",
+      "args": [
+        "webview-devtools-mcp@0.1.0"
+      ]
+    }
+  }
+}

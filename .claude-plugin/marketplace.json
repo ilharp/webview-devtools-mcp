@@ -1,0 +1,17 @@
+{
+  "name": "webview-devtools-mcp-plugins",
+  "version": "0.1.0",
+  "description": "Bundled plugins for webview-devtools-mcp.",
+  "repository": "https://github.com/ilharp/webview-devtools-mcp",
+  "owner": {
+    "name": "Il Harper",
+    "email": "hi@ilharper.com"
+  },
+  "plugins": [
+    {
+      "name": "webview-devtools-mcp",
+      "source": "./",
+      "description": "DevTools for any WebView — no remote-debugging port required. Works in Safari/iOS WebView/Lark Web App and more."
+    }
+  ]
+}
