@@ -13,10 +13,10 @@ From: Il Harper <hi@ilharper.com>
  tests/tools/input.test.ts       |  187 --------
  tests/tools/lighthouse.test.ts  |  189 --------
  tests/tools/memory.test.ts      |  620 ---------------------------
- tests/tools/pages.test.ts       |  700 -------------------------------
+ tests/tools/pages.test.ts       |  704 -------------------------------
  tests/tools/performance.test.ts |  573 -------------------------
  tests/tools/script.test.ts      |   61 ---
- 12 files changed, 1 insertion(+), 3871 deletions(-)
+ 12 files changed, 1 insertion(+), 3875 deletions(-)
  delete mode 100644 tests/tools/emulation.test.ts
  delete mode 100644 tests/tools/extensions.test.ts
  delete mode 100644 tests/tools/lighthouse.test.ts
@@ -2713,7 +2713,7 @@ index 639f512..0000000
 -  });
 -});
 diff --git a/tests/tools/pages.test.ts b/tests/tools/pages.test.ts
-index 74889a7..2bb149b 100644
+index 5fc54b2..9950014 100644
 --- a/tests/tools/pages.test.ts
 +++ b/tests/tools/pages.test.ts
 @@ -14,12 +14,8 @@ import sinon from 'sinon';
@@ -2729,7 +2729,7 @@ index 74889a7..2bb149b 100644
    getTabId,
  } from '../../src/tools/pages.js';
  import {assertNoServiceWorkerReported, html, withMcpContext} from '../utils.js';
-@@ -230,284 +226,6 @@ describe('pages', () => {
+@@ -230,288 +226,6 @@ describe('pages', () => {
        });
      });
    });
@@ -2788,8 +2788,8 @@ index 74889a7..2bb149b 100644
 -          response,
 -          context,
 -        );
--        const page = context.getSelectedMcpPage().pptrPage;
--        assert.strictEqual(context.getIsolatedContextName(page), 'session-a');
+-        const mcpPage = context.getSelectedMcpPage();
+-        assert.strictEqual(mcpPage.isolatedContextName, 'session-a');
 -        assert.ok(response.includePages);
 -      });
 -    });
@@ -2801,16 +2801,18 @@ index 74889a7..2bb149b 100644
 -          response,
 -          context,
 -        );
--        const page1 = context.getSelectedMcpPage().pptrPage;
+-        const mcpPage1 = context.getSelectedMcpPage();
+-        const page1 = mcpPage1.pptrPage;
 -        await newPage().handler(
 -          {params: {url: 'about:blank', isolatedContext: 'session-a'}},
 -          response,
 -          context,
 -        );
--        const page2 = context.getSelectedMcpPage().pptrPage;
+-        const mcpPage2 = context.getSelectedMcpPage();
+-        const page2 = mcpPage2.pptrPage;
 -        assert.notStrictEqual(page1, page2);
--        assert.strictEqual(context.getIsolatedContextName(page1), 'session-a');
--        assert.strictEqual(context.getIsolatedContextName(page2), 'session-a');
+-        assert.strictEqual(mcpPage1.isolatedContextName, 'session-a');
+-        assert.strictEqual(mcpPage2.isolatedContextName, 'session-a');
 -        assert.strictEqual(page1.browserContext(), page2.browserContext());
 -      });
 -    });
@@ -2822,15 +2824,17 @@ index 74889a7..2bb149b 100644
 -          response,
 -          context,
 -        );
--        const pageA = context.getSelectedMcpPage().pptrPage;
+-        const mcpPageA = context.getSelectedMcpPage();
+-        const pageA = mcpPageA.pptrPage;
 -        await newPage().handler(
 -          {params: {url: 'about:blank', isolatedContext: 'session-b'}},
 -          response,
 -          context,
 -        );
--        const pageB = context.getSelectedMcpPage().pptrPage;
--        assert.strictEqual(context.getIsolatedContextName(pageA), 'session-a');
--        assert.strictEqual(context.getIsolatedContextName(pageB), 'session-b');
+-        const mcpPageB = context.getSelectedMcpPage();
+-        const pageB = mcpPageB.pptrPage;
+-        assert.strictEqual(mcpPageA.isolatedContextName, 'session-a');
+-        assert.strictEqual(mcpPageB.isolatedContextName, 'session-b');
 -        assert.notStrictEqual(pageA.browserContext(), pageB.browserContext());
 -      });
 -    });
@@ -2853,15 +2857,15 @@ index 74889a7..2bb149b 100644
 -
 -    it('does not set isolatedContext for pages in the default context', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedMcpPage().pptrPage;
--        assert.strictEqual(context.getIsolatedContextName(page), undefined);
+-        const mcpPage = context.getSelectedMcpPage();
+-        assert.strictEqual(mcpPage.isolatedContextName, undefined);
 -        await newPage().handler(
 -          {params: {url: 'about:blank'}},
 -          response,
 -          context,
 -        );
 -        assert.strictEqual(
--          context.getIsolatedContextName(context.getSelectedMcpPage().pptrPage),
+-          context.getSelectedMcpPage().isolatedContextName,
 -          undefined,
 -        );
 -      });
@@ -3014,7 +3018,7 @@ index 74889a7..2bb149b 100644
    describe('select_page', () => {
      it('selects a page', async () => {
        await withMcpContext(async (response, context) => {
-@@ -551,50 +269,6 @@ describe('pages', () => {
+@@ -555,50 +269,6 @@ describe('pages', () => {
          assert.ok(response.includePages);
        });
      });
@@ -3065,7 +3069,7 @@ index 74889a7..2bb149b 100644
  
      it('when dialog is open', async t => {
        await withMcpContext(async (response, context) => {
-@@ -898,380 +572,6 @@ describe('pages', () => {
+@@ -902,380 +572,6 @@ describe('pages', () => {
        });
      });
    });
