@@ -35,6 +35,11 @@ jobs:
           git config --global user.email "hi@ilharper.com"
         shell: bash
 
+      - name: Apt Update
+        run: |
+          sudo apt update
+        shell: bash
+
       - name: Upgrade Make
         run: |
           sudo apt-get install -y --only-upgrade make
@@ -42,7 +47,6 @@ jobs:
 
       - name: Setup stgit
         run: |
-          sudo apt update
           sudo apt install -y wget
           wget https://github.com/stacked-git/stgit/releases/download/v2.6.1/stgit_2.6.1-1_amd64.deb
           sudo apt install -y ./stgit_2.6.1-1_amd64.deb
