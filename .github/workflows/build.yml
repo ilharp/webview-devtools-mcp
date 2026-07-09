@@ -29,6 +29,11 @@ jobs:
           git config --global user.email "hi@ilharper.com"
         shell: bash
 
+      - name: Upgrade Make
+        run: |
+          sudo apt-get install -y --only-upgrade make
+        shell: bash
+
       - name: Setup stgit
         run: |
           sudo apt update
