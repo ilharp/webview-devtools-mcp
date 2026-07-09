@@ -1,10 +1,11 @@
-# This series applies on Git commit ff53b7bb823cc61ccde0eb6dc235450ff9884d0a
+# This series applies on Git commit 6e56c028cf80ac977c501a94d0958568dea901c2
 0001-add-install-config.patch
 0003-add-deps.patch
 0010-ignore-license-check.patch
 0080-remove-tests.patch
 0100-modify-cli-args.patch
 0120-change-app-name.patch
+0130-modify-update.patch
 0200-add-wdmcp.patch
 0210-inject-wdmcp.patch
 0300-remove-tools.patch

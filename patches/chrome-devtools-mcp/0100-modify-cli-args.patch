@@ -4,11 +4,40 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/bin/chrome-devtools-mcp-cli-options.ts |  195 +++-------------------------
- 1 file changed, 21 insertions(+), 174 deletions(-)
+ src/McpContext.ts                          |    6 -
+ src/bin/chrome-devtools-mcp-cli-options.ts |  215 +++-------------------------
+ src/index.ts                               |   27 ----
+ src/tools/ToolDefinition.ts                |    1 
+ src/tools/performance.ts                   |    3 
+ tests/utils.ts                             |    1 
+ 6 files changed, 21 insertions(+), 232 deletions(-)
 
+diff --git a/src/McpContext.ts b/src/McpContext.ts
+index 67c31b2..b0fb466 100644
+--- a/src/McpContext.ts
++++ b/src/McpContext.ts
+@@ -63,8 +63,6 @@ interface McpContextOptions {
+   experimentalDevToolsDebugging: boolean;
+   // Whether all page-like targets are exposed as pages.
+   experimentalIncludeAllPages?: boolean;
+-  // Whether CrUX data should be fetched.
+-  performanceCrux: boolean;
+   // The allow list of URL patterns to allow loading resources.
+   allowList?: string[];
+   // The block list of URL patterns to block loading resources.
+@@ -527,10 +525,6 @@ export class McpContext implements Context {
+     this.#screenRecorderData = data;
+   }
+ 
+-  isCruxEnabled(): boolean {
+-    return this.#options.performanceCrux;
+-  }
+-
+   getSelectedPptrPage(): Page {
+     const page = this.#selectedPage;
+     if (!page) {
 diff --git a/src/bin/chrome-devtools-mcp-cli-options.ts b/src/bin/chrome-devtools-mcp-cli-options.ts
-index 5d0bedd..d24a2d6 100644
+index 2fe8fc6..ecce4f5 100644
 --- a/src/bin/chrome-devtools-mcp-cli-options.ts
 +++ b/src/bin/chrome-devtools-mcp-cli-options.ts
 @@ -8,141 +8,38 @@ import type {YargsOptions} from '../third_party/index.js';
@@ -194,10 +223,31 @@ index 5d0bedd..d24a2d6 100644
    categoryEmulation: {
      type: 'boolean',
      default: true,
-@@ -376,14 +263,6 @@ export function parseArguments(
+@@ -263,18 +150,6 @@ export const cliOptions = {
+     describe:
+       'Set to true to enable third-party developer tools exposed by the inspected page itself',
+   },
+-  performanceCrux: {
+-    type: 'boolean',
+-    default: true,
+-    describe:
+-      'Set to false to disable sending URLs from performance traces to CrUX API to get field performance data.',
+-  },
+-  usageStatistics: {
+-    type: 'boolean',
+-    default: true,
+-    describe:
+-      'Set to false to opt-out of usage statistics collection. Google collects usage data to improve the tool, handled under the Google Privacy Policy (https://policies.google.com/privacy). This is independent from Chrome browser metrics. Disabled if `CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS` or `CI` env variables are set.',
+-  },
+   clearcutEndpoint: {
+     type: 'string',
+     hidden: true,
+@@ -383,72 +258,24 @@ export function parseArguments(
+     .scriptName('npx chrome-devtools-mcp@latest')
+     .options(cliOptions)
      .middleware(args => {
-       // We can't set default in the options else
-       // Yargs will complain
+-      // We can't set default in the options else
+-      // Yargs will complain
 -      if (
 -        !args.channel &&
 -        !args.browserUrl &&
@@ -206,28 +256,30 @@ index 5d0bedd..d24a2d6 100644
 -      ) {
 -        args.channel = 'stable';
 -      }
-       if (env['CI'] || env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS']) {
-         console.error(
-           "turning off usage statistics. process.env['CI'] || process.env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] is set.",
-@@ -393,53 +272,21 @@ export function parseArguments(
+-      if (env['CI'] || env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS']) {
+-        console.error(
+-          "turning off usage statistics. process.env['CI'] || process.env['CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS'] is set.",
+-        );
+-        args.usageStatistics = false;
+-      }
      })
      .example([
        [
 -        '$0 --browserUrl http://127.0.0.1:9222',
 -        'Connect to an existing browser instance via HTTP',
+-      ],
+-      [
+-        '$0 --wsEndpoint ws://127.0.0.1:9222/devtools/browser/abc123',
+-        'Connect to an existing browser instance via WebSocket',
 +        '$0 --port 9334',
 +        'Start server on port 9334',
        ],
        [
--        '$0 --wsEndpoint ws://127.0.0.1:9222/devtools/browser/abc123',
--        'Connect to an existing browser instance via WebSocket',
+-        `$0 --wsEndpoint ws://127.0.0.1:9222/devtools/browser/abc123 --wsHeaders '{"Authorization":"Bearer token"}'`,
+-        'Connect via WebSocket with custom headers',
 +        '$0 --host 0.0.0.0',
 +        'Expose server',
        ],
--      [
--        `$0 --wsEndpoint ws://127.0.0.1:9222/devtools/browser/abc123 --wsHeaders '{"Authorization":"Bearer token"}'`,
--        'Connect via WebSocket with custom headers',
--      ],
 -      ['$0 --channel beta', 'Use Chrome Beta installed on this system'],
 -      ['$0 --channel canary', 'Use Chrome Canary installed on this system'],
 -      ['$0 --channel dev', 'Use Chrome Dev installed on this system'],
@@ -267,3 +319,98 @@ index 5d0bedd..d24a2d6 100644
        [
          '$0 --no-usage-statistics',
          'Do not send usage statistics https://github.com/ChromeDevTools/chrome-devtools-mcp#usage-statistics.',
+diff --git a/src/index.ts b/src/index.ts
+index 9aeb30c..9dce8ee 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -14,7 +14,6 @@ import {logger} from './logger.js';
+ import {McpContext} from './McpContext.js';
+ import {Mutex} from './Mutex.js';
+ import {ClearcutLogger} from './telemetry/ClearcutLogger.js';
+-import {FilePersistence} from './telemetry/persistence.js';
+ import {
+   McpServer,
+   type CallToolResult,
+@@ -35,17 +34,6 @@ export async function createMcpServer(
+     logFile?: fs.WriteStream;
+   },
+ ) {
+-  if (serverArgs.usageStatistics) {
+-    ClearcutLogger.initialize({
+-      persistence: new FilePersistence(),
+-      logFile: serverArgs.logFile,
+-      appVersion: VERSION,
+-      clearcutEndpoint: serverArgs.clearcutEndpoint,
+-      clearcutForceFlushIntervalMs: serverArgs.clearcutForceFlushIntervalMs,
+-      clearcutIncludePidHeader: serverArgs.clearcutIncludePidHeader,
+-    });
+-  }
+-
+   const server = new McpServer(
+     {
+       name: 'chrome_devtools',
+@@ -150,7 +138,6 @@ export async function createMcpServer(
+       context = await McpContext.from(browser, logger, {
+         experimentalDevToolsDebugging: devtools,
+         experimentalIncludeAllPages: serverArgs.experimentalIncludeAllPages,
+-        performanceCrux: serverArgs.performanceCrux,
+         allowList: allowlist,
+         blocklist: blocklist,
+         allowUnrestrictedPaths: serverArgs.allowUnrestrictedPaths,
+@@ -203,18 +190,4 @@ export const logDisclaimers = (args: ReturnType<typeof parseArguments>) => {
+ debug, and modify any data in the browser or DevTools.
+ Avoid sharing sensitive or personal information that you do not want to share with MCP clients.`,
+   );
+-
+-  if (!args.slim && args.performanceCrux) {
+-    console.error(
+-      `Performance tools may send trace URLs to the Google CrUX API to fetch real-user experience data. To disable, run with --no-performance-crux.`,
+-    );
+-  }
+-
+-  if (!args.slim && args.usageStatistics) {
+-    console.error(
+-      `
+-Google collects usage statistics to improve Chrome DevTools MCP. To opt-out, run with --no-usage-statistics.
+-For more details, visit: https://github.com/ChromeDevTools/chrome-devtools-mcp#usage-statistics`,
+-    );
+-  }
+ };
+diff --git a/src/tools/ToolDefinition.ts b/src/tools/ToolDefinition.ts
+index 36948e2..a877595 100644
+--- a/src/tools/ToolDefinition.ts
++++ b/src/tools/ToolDefinition.ts
+@@ -198,7 +198,6 @@ export type Context = Readonly<{
+   ): Promise<`${string}${Extension}`>;
+   isRunningPerformanceTrace(): boolean;
+   setIsRunningPerformanceTrace(x: boolean): void;
+-  isCruxEnabled(): boolean;
+   recordedTraces(): TraceResult[];
+   storeTraceRecording(result: TraceResult): void;
+   getPageById(pageId: number): ContextPage;
+diff --git a/src/tools/performance.ts b/src/tools/performance.ts
+index a41d20b..4d90b60 100644
+--- a/src/tools/performance.ts
++++ b/src/tools/performance.ts
+@@ -217,9 +217,6 @@ async function stopTracingAndAppendOutput(
+     });
+     response.appendResponseLine('The performance trace has been stopped.');
+     if (traceResultIsSuccess(result)) {
+-      if (context.isCruxEnabled()) {
+-        await populateCruxData(result);
+-      }
+       context.storeTraceRecording(result);
+       response.attachTraceSummary(result);
+     } else {
+diff --git a/tests/utils.ts b/tests/utils.ts
+index 9fd4112..dd69d98 100644
+--- a/tests/utils.ts
++++ b/tests/utils.ts
+@@ -136,7 +136,6 @@ export async function withMcpContext(
+       logger('test'),
+       {
+         experimentalDevToolsDebugging: false,
+-        performanceCrux: options.performanceCrux ?? true,
+         allowList: options.allowedUrlPattern,
+         blocklist: options.blockedUrlPattern,
+         allowUnrestrictedPaths: options.allowUnrestrictedPaths ?? false,

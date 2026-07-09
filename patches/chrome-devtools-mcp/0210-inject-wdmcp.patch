@@ -170,7 +170,7 @@ index 6b077ad..96bff07 100644
  }
  
 diff --git a/src/index.ts b/src/index.ts
-index 8270a5c..469f009 100644
+index 9dce8ee..f754b82 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -7,8 +7,7 @@
@@ -183,7 +183,7 @@ index 8270a5c..469f009 100644
  import {loadIssueDescriptions} from './issue-descriptions.js';
  import {logger} from './logger.js';
  import {McpContext} from './McpContext.js';
-@@ -31,7 +30,7 @@ export {buildFlag} from './ToolHandler.js';
+@@ -30,7 +29,7 @@ export {buildFlag} from './ToolHandler.js';
  
  export async function createMcpServer(
    serverArgs: ReturnType<typeof parseArguments>,
@@ -192,7 +192,7 @@ index 8270a5c..469f009 100644
      logFile?: fs.WriteStream;
    },
  ) {
-@@ -91,13 +90,6 @@ export async function createMcpServer(
+@@ -86,13 +85,6 @@ export async function createMcpServer(
  
    let context: McpContext;
    async function getContext(): Promise<McpContext> {
@@ -206,7 +206,7 @@ index 8270a5c..469f009 100644
      const devtools = serverArgs.experimentalDevtools ?? false;
      const blocklist = serverArgs.blockedUrlPattern
        ? serverArgs.blockedUrlPattern.map(String)
-@@ -106,38 +98,12 @@ export async function createMcpServer(
+@@ -101,38 +93,12 @@ export async function createMcpServer(
        ? serverArgs.allowedUrlPattern.map(String)
        : undefined;
  

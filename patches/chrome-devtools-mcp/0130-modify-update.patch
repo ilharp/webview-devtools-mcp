@@ -1,0 +1,36 @@
+feat: modify update
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ src/bin/check-latest-version.ts |    2 +-
+ src/utils/check-for-updates.ts  |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/bin/check-latest-version.ts b/src/bin/check-latest-version.ts
+index 1fff66e..7911c45 100644
+--- a/src/bin/check-latest-version.ts
++++ b/src/bin/check-latest-version.ts
+@@ -38,7 +38,7 @@ const cachePath = process.argv[2];
+ 
+ if (cachePath) {
+   try {
+-    const response = await fetch(`${getRegistry()}/chrome-devtools-mcp/latest`);
++    const response = await fetch(`${getRegistry()}/webview-devtools-mcp/latest`);
+     const data = response.ok ? await response.json() : null;
+ 
+     if (
+diff --git a/src/utils/check-for-updates.ts b/src/utils/check-for-updates.ts
+index f88ec0c..5951b37 100644
+--- a/src/utils/check-for-updates.ts
++++ b/src/utils/check-for-updates.ts
+@@ -33,7 +33,7 @@ export async function checkForUpdates(message: string) {
+   const cachePath = path.join(
+     os.homedir(),
+     '.cache',
+-    'chrome-devtools-mcp',
++    'webview-devtools-mcp',
+     'latest.json',
+   );
+ 
