@@ -4,7 +4,7 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- tests/McpResponse.test.ts       |   25 -
+ tests/McpResponse.test.ts       |   24 -
  tests/browser.test.ts           |  166 -------
  tests/network_blocking.test.ts  |  136 ------
  tests/tools/console.test.ts     |  112 -----
@@ -12,11 +12,11 @@ From: Il Harper <hi@ilharper.com>
  tests/tools/extensions.test.ts  |  224 ----------
  tests/tools/input.test.ts       |  187 --------
  tests/tools/lighthouse.test.ts  |  189 --------
- tests/tools/memory.test.ts      |  557 -------------------------
- tests/tools/pages.test.ts       |  699 -------------------------------
+ tests/tools/memory.test.ts      |  620 ---------------------------
+ tests/tools/pages.test.ts       |  700 -------------------------------
  tests/tools/performance.test.ts |  573 -------------------------
  tests/tools/script.test.ts      |   61 ---
- 12 files changed, 1 insertion(+), 3808 deletions(-)
+ 12 files changed, 1 insertion(+), 3871 deletions(-)
  delete mode 100644 tests/tools/emulation.test.ts
  delete mode 100644 tests/tools/extensions.test.ts
  delete mode 100644 tests/tools/lighthouse.test.ts
@@ -24,7 +24,7 @@ From: Il Harper <hi@ilharper.com>
  delete mode 100644 tests/tools/performance.test.ts
 
 diff --git a/tests/McpResponse.test.ts b/tests/McpResponse.test.ts
-index 6aaf9ed..9c8fe3b 100644
+index 0e54337..585fa06 100644
 --- a/tests/McpResponse.test.ts
 +++ b/tests/McpResponse.test.ts
 @@ -21,10 +21,8 @@ import type {
@@ -38,14 +38,13 @@ index 6aaf9ed..9c8fe3b 100644
    selectPage,
  } from '../src/tools/pages.js';
  import type {InsightName} from '../src/trace-processing/parse.js';
-@@ -1174,14 +1172,6 @@ describe('third-party developer tools', () => {
+@@ -1173,13 +1171,6 @@ describe('third-party developer tools', () => {
      }, 'select_page');
    });
  
 -  it('includes third-party developer tools in close_page response', async () => {
 -    await testIncludesThirdPartyDeveloperTools(async (response, context) => {
--      const pageId =
--        context.getPageId(context.getSelectedMcpPage().pptrPage) ?? 1;
+-      const pageId = context.getSelectedMcpPage().id;
 -      await closePage.handler({params: {pageId}}, response, context);
 -    }, 'close_page');
 -  });
@@ -53,7 +52,7 @@ index 6aaf9ed..9c8fe3b 100644
    it('includes third-party developer tools in navigate_page response', async () => {
      await testIncludesThirdPartyDeveloperTools(async (response, context) => {
        await navigatePage().handler(
-@@ -1194,21 +1184,6 @@ describe('third-party developer tools', () => {
+@@ -1192,21 +1183,6 @@ describe('third-party developer tools', () => {
        );
      }, 'navigate_page');
    });
@@ -410,7 +409,7 @@ index fbc2279..2ef5eb0 100644
 -  });
  });
 diff --git a/tests/tools/console.test.ts b/tests/tools/console.test.ts
-index 7ae59f2..b0e72de 100644
+index 1b49d07..7e4be4e 100644
 --- a/tests/tools/console.test.ts
 +++ b/tests/tools/console.test.ts
 @@ -5,7 +5,6 @@
@@ -558,7 +557,7 @@ index 7ae59f2..b0e72de 100644
        await withMcpContext(async (response, context) => {
 diff --git a/tests/tools/emulation.test.ts b/tests/tools/emulation.test.ts
 deleted file mode 100644
-index 09850b9..0000000
+index 6628c33..0000000
 --- a/tests/tools/emulation.test.ts
 +++ /dev/null
 @@ -1,880 +0,0 @@
@@ -936,7 +935,7 @@ index 09850b9..0000000
 -
 -    it('emulates viewport', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await page.goto(server.baseUrl + '/viewport');
 -        await emulate.handler(
 -          {
@@ -976,7 +975,7 @@ index 09850b9..0000000
 -
 -    it('clears viewport override when viewport is set to null', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        // First set a viewport
 -        await emulate.handler(
 -          {
@@ -1017,7 +1016,7 @@ index 09850b9..0000000
 -        assert.strictEqual(context.getSelectedMcpPage().viewport, null);
 -
 -        // Somehow reset of the viewport seems to be async.
--        await context.getSelectedPptrPage().waitForFunction(() => {
+-        await context.getSelectedMcpPage().pptrPage.waitForFunction(() => {
 -          return window.innerWidth !== 400 && window.innerHeight !== 400;
 -        });
 -      });
@@ -1046,7 +1045,7 @@ index 09850b9..0000000
 -
 -        assert.strictEqual(context.getSelectedMcpPage().viewport, null);
 -        assert.ok(
--          await context.getSelectedPptrPage().evaluate(() => {
+-          await context.getSelectedMcpPage().pptrPage.evaluate(() => {
 -            return window.innerWidth !== 400 && window.innerHeight !== 400;
 -          }),
 -        );
@@ -1069,7 +1068,7 @@ index 09850b9..0000000
 -        );
 -
 -        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'MyUA');
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const ua = await page.evaluate(() => navigator.userAgent);
 -        assert.strictEqual(ua, 'MyUA');
 -      });
@@ -1100,7 +1099,7 @@ index 09850b9..0000000
 -          context,
 -        );
 -        assert.strictEqual(context.getSelectedMcpPage().userAgent, 'UA2');
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const ua = await page.evaluate(() => navigator.userAgent);
 -        assert.strictEqual(ua, 'UA2');
 -      });
@@ -1131,7 +1130,7 @@ index 09850b9..0000000
 -        );
 -
 -        assert.strictEqual(context.getSelectedMcpPage().userAgent, null);
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const ua = await page.evaluate(() => navigator.userAgent);
 -        assert.notStrictEqual(ua, 'MyUA');
 -        assert.ok(ua.length > 0);
@@ -1158,7 +1157,7 @@ index 09850b9..0000000
 -
 -        assert.strictEqual(context.getSelectedMcpPage().userAgent, null);
 -        assert.ok(
--          await context.getSelectedPptrPage().evaluate(() => {
+-          await context.getSelectedMcpPage().pptrPage.evaluate(() => {
 -            return navigator.userAgent !== 'MyUA';
 -          }),
 -        );
@@ -1176,7 +1175,7 @@ index 09850b9..0000000
 -      });
 -
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await emulate.handler(
 -          {
 -            params: {
@@ -1202,7 +1201,7 @@ index 09850b9..0000000
 -      });
 -
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        // Set headers first
 -        await emulate.handler(
 -          {
@@ -1250,7 +1249,7 @@ index 09850b9..0000000
 -      });
 -
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await emulate.handler(
 -          {
 -            params: {
@@ -1347,7 +1346,7 @@ index 09850b9..0000000
 -        );
 -
 -        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'dark');
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const scheme = await page.evaluate(() =>
 -          window.matchMedia('(prefers-color-scheme: dark)').matches
 -            ? 'dark'
@@ -1382,7 +1381,7 @@ index 09850b9..0000000
 -          context,
 -        );
 -        assert.strictEqual(context.getSelectedMcpPage().colorScheme, 'light');
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const scheme = await page.evaluate(() =>
 -          window.matchMedia('(prefers-color-scheme: light)').matches
 -            ? 'light'
@@ -1394,7 +1393,7 @@ index 09850b9..0000000
 -
 -    it('resets color scheme when set to auto', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -
 -        const initial = await page.evaluate(
 -          () => window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -1444,7 +1443,7 @@ index 09850b9..0000000
 -});
 diff --git a/tests/tools/extensions.test.ts b/tests/tools/extensions.test.ts
 deleted file mode 100644
-index bb0440a..0000000
+index 1158375..0000000
 --- a/tests/tools/extensions.test.ts
 +++ /dev/null
 @@ -1,224 +0,0 @@
@@ -1508,7 +1507,7 @@ index bb0440a..0000000
 -      );
 -
 -      const extensionId = extractExtensionId(response);
--      const page = context.getSelectedPptrPage();
+-      const page = context.getSelectedMcpPage().pptrPage;
 -      await page.goto('chrome://extensions');
 -
 -      const element = await page.waitForSelector(
@@ -1673,7 +1672,7 @@ index bb0440a..0000000
 -  });
 -});
 diff --git a/tests/tools/input.test.ts b/tests/tools/input.test.ts
-index 29c81e5..29571f7 100644
+index 0e7f7e3..bb990e3 100644
 --- a/tests/tools/input.test.ts
 +++ b/tests/tools/input.test.ts
 @@ -5,8 +5,6 @@
@@ -1702,7 +1701,7 @@ index 29c81e5..29571f7 100644
 -  describe('drags', () => {
 -    it('drags one element onto another', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await page.setContent(
 -          html`<div
 -              role="button"
@@ -1769,7 +1768,7 @@ index 29c81e5..29571f7 100644
 -      await fs.writeFile(testFilePath, 'test file content');
 -
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await page.setContent(
 -          html`<form>
 -            <input
@@ -1807,7 +1806,7 @@ index 29c81e5..29571f7 100644
 -      await fs.writeFile(testFilePath, 'test file content');
 -
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await page.setContent(
 -          html`<button id="file-chooser-button">Upload file</button>
 -            <input
@@ -1857,7 +1856,7 @@ index 29c81e5..29571f7 100644
 -      await fs.writeFile(testFilePath, 'test file content');
 -
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await page.setContent(html`<div>Not a file input</div>`);
 -        context.getSelectedMcpPage().textSnapshot = await TextSnapshot.create(
 -          context.getSelectedMcpPage(),
@@ -1894,7 +1893,7 @@ index 29c81e5..29571f7 100644
        assert.deepStrictEqual(parseKey('Shift+A'), ['A', 'Shift']);
 diff --git a/tests/tools/lighthouse.test.ts b/tests/tools/lighthouse.test.ts
 deleted file mode 100644
-index 4b7dce7..0000000
+index d01d382..0000000
 --- a/tests/tools/lighthouse.test.ts
 +++ /dev/null
 @@ -1,189 +0,0 @@
@@ -1921,7 +1920,7 @@ index 4b7dce7..0000000
 -      server.addHtmlRoute('/test', html`<div>Test</div>`);
 -
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await page.goto(server.getRoute('/test'));
 -
 -        await lighthouseAudit.handler(
@@ -1956,7 +1955,7 @@ index 4b7dce7..0000000
 -      server.addHtmlRoute('/test-mobile', html`<div>Test Mobile</div>`);
 -
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await page.goto(server.getRoute('/test-mobile'));
 -        await context.emulate({
 -          viewport: {
@@ -2021,7 +2020,7 @@ index 4b7dce7..0000000
 -      server.addHtmlRoute('/test-mobile', html`<div>Test Mobile</div>`);
 -
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await page.goto(server.getRoute('/test-mobile'));
 -
 -        await lighthouseAudit.handler(
@@ -2056,7 +2055,7 @@ index 4b7dce7..0000000
 -
 -      try {
 -        await withMcpContext(async (response, context) => {
--          const page = context.getSelectedPptrPage();
+-          const page = context.getSelectedMcpPage().pptrPage;
 -          await page.goto(server.getRoute('/test-mobile'));
 -
 -          await lighthouseAudit.handler(
@@ -2089,10 +2088,10 @@ index 4b7dce7..0000000
 -});
 diff --git a/tests/tools/memory.test.ts b/tests/tools/memory.test.ts
 deleted file mode 100644
-index 0e8538c..0000000
+index 639f512..0000000
 --- a/tests/tools/memory.test.ts
 +++ /dev/null
-@@ -1,557 +0,0 @@
+@@ -1,620 +0,0 @@
 -/**
 - * @license
 - * Copyright 2026 Google LLC
@@ -2119,6 +2118,7 @@ index 0e8538c..0000000
 -  compareHeapSnapshots,
 -  getHeapSnapshotDuplicateStrings,
 -} from '../../src/tools/memory.js';
+-import {stableIdSymbol} from '../../src/utils/id.js';
 -import {withMcpContext} from '../utils.js';
 -
 -describe('memory', () => {
@@ -2199,6 +2199,31 @@ index 0e8538c..0000000
 -        t.assert.snapshot(output);
 -      });
 -    });
+-
+-    it('with objectsRetainedByContexts filterName', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotDetails.handler(
+-          {params: {filePath, filterName: 'objectsRetainedByContexts'}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotDetails.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
 -  });
 -
 -  describe('get_heapsnapshot_class_nodes', () => {
@@ -2213,6 +2238,43 @@ index 0e8538c..0000000
 -
 -        await getHeapSnapshotClassNodes.handler(
 -          {params: {filePath, id: 19}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotClassNodes.name,
+-          context,
+-        );
+-
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-
+-    it('with objectsRetainedByContexts filterName', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        const aggregateData = await context.getHeapSnapshotAggregates(
+-          filePath,
+-          'objectsRetainedByContexts',
+-        );
+-        const aggregate = Object.values(aggregateData.aggregates).find(
+-          a => a.name === 'Function',
+-        );
+-        assert.ok(aggregate);
+-        const id = aggregate[stableIdSymbol];
+-        assert.ok(id);
+-
+-        await getHeapSnapshotClassNodes.handler(
+-          {params: {filePath, id, filterName: 'objectsRetainedByContexts'}},
 -          response,
 -          context,
 -        );
@@ -2651,7 +2713,7 @@ index 0e8538c..0000000
 -  });
 -});
 diff --git a/tests/tools/pages.test.ts b/tests/tools/pages.test.ts
-index 038532f..2574a1d 100644
+index 74889a7..2bb149b 100644
 --- a/tests/tools/pages.test.ts
 +++ b/tests/tools/pages.test.ts
 @@ -14,12 +14,8 @@ import sinon from 'sinon';
@@ -2667,7 +2729,7 @@ index 038532f..2574a1d 100644
    getTabId,
  } from '../../src/tools/pages.js';
  import {assertNoServiceWorkerReported, html, withMcpContext} from '../utils.js';
-@@ -230,284 +226,7 @@ describe('pages', () => {
+@@ -230,284 +226,6 @@ describe('pages', () => {
        });
      });
    });
@@ -2726,7 +2788,7 @@ index 038532f..2574a1d 100644
 -          response,
 -          context,
 -        );
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        assert.strictEqual(context.getIsolatedContextName(page), 'session-a');
 -        assert.ok(response.includePages);
 -      });
@@ -2739,13 +2801,13 @@ index 038532f..2574a1d 100644
 -          response,
 -          context,
 -        );
--        const page1 = context.getSelectedPptrPage();
+-        const page1 = context.getSelectedMcpPage().pptrPage;
 -        await newPage().handler(
 -          {params: {url: 'about:blank', isolatedContext: 'session-a'}},
 -          response,
 -          context,
 -        );
--        const page2 = context.getSelectedPptrPage();
+-        const page2 = context.getSelectedMcpPage().pptrPage;
 -        assert.notStrictEqual(page1, page2);
 -        assert.strictEqual(context.getIsolatedContextName(page1), 'session-a');
 -        assert.strictEqual(context.getIsolatedContextName(page2), 'session-a');
@@ -2760,13 +2822,13 @@ index 038532f..2574a1d 100644
 -          response,
 -          context,
 -        );
--        const pageA = context.getSelectedPptrPage();
+-        const pageA = context.getSelectedMcpPage().pptrPage;
 -        await newPage().handler(
 -          {params: {url: 'about:blank', isolatedContext: 'session-b'}},
 -          response,
 -          context,
 -        );
--        const pageB = context.getSelectedPptrPage();
+-        const pageB = context.getSelectedMcpPage().pptrPage;
 -        assert.strictEqual(context.getIsolatedContextName(pageA), 'session-a');
 -        assert.strictEqual(context.getIsolatedContextName(pageB), 'session-b');
 -        assert.notStrictEqual(pageA.browserContext(), pageB.browserContext());
@@ -2791,7 +2853,7 @@ index 038532f..2574a1d 100644
 -
 -    it('does not set isolatedContext for pages in the default context', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        assert.strictEqual(context.getIsolatedContextName(page), undefined);
 -        await newPage().handler(
 -          {params: {url: 'about:blank'}},
@@ -2799,7 +2861,7 @@ index 038532f..2574a1d 100644
 -          context,
 -        );
 -        assert.strictEqual(
--          context.getIsolatedContextName(context.getSelectedPptrPage()),
+-          context.getIsolatedContextName(context.getSelectedMcpPage().pptrPage),
 -          undefined,
 -        );
 -      });
@@ -2812,8 +2874,8 @@ index 038532f..2574a1d 100644
 -          response,
 -          context,
 -        );
--        const page = context.getSelectedPptrPage();
--        const pageId = context.getPageId(page)!;
+-        const page = context.getSelectedMcpPage().pptrPage;
+-        const pageId = context.getSelectedMcpPage().id;
 -        assert.ok(!page.isClosed());
 -        await closePage.handler({params: {pageId}}, response, context);
 -        assert.ok(page.isClosed());
@@ -2822,7 +2884,7 @@ index 038532f..2574a1d 100644
 -
 -    it('when dialog is open', async t => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -
 -        const dialogPromise = new Promise<Dialog>(resolve => {
 -          page.on('dialog', dialog => {
@@ -2840,7 +2902,7 @@ index 038532f..2574a1d 100644
 -          response,
 -          context,
 -        );
- 
+-
 -        const result = await response.handle('new_page', context);
 -        t.assert.snapshot(JSON.stringify(result));
 -        await dialog.dismiss();
@@ -2887,8 +2949,8 @@ index 038532f..2574a1d 100644
 -
 -      // Verify the default page was NOT affected.
 -      const defaultContent = await context
--        .getSelectedPptrPage()
--        .evaluate(() => document.querySelector('h1')?.textContent);
+-        .getSelectedMcpPage()
+-        .pptrPage.evaluate(() => document.querySelector('h1')?.textContent);
 -      assert.notStrictEqual(defaultContent, 'Navigated');
 -    });
 -  });
@@ -2909,7 +2971,7 @@ index 038532f..2574a1d 100644
 -    });
 -    it('cannot close the last page', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        await closePage.handler({params: {pageId: 1}}, response, context);
 -        assert.deepStrictEqual(
 -          response.responseLines[0],
@@ -2952,7 +3014,7 @@ index 038532f..2574a1d 100644
    describe('select_page', () => {
      it('selects a page', async () => {
        await withMcpContext(async (response, context) => {
-@@ -551,50 +270,6 @@ describe('pages', () => {
+@@ -551,50 +269,6 @@ describe('pages', () => {
          assert.ok(response.includePages);
        });
      });
@@ -2964,15 +3026,15 @@ index 038532f..2574a1d 100644
 -          response,
 -          context,
 -        );
--        const pageA = context.getSelectedPptrPage();
--        const pageAId = context.getPageId(pageA)!;
+-        const pageA = context.getSelectedMcpPage().pptrPage;
+-        const pageAId = context.getSelectedMcpPage().id;
 -
 -        await newPage().handler(
 -          {params: {url: 'about:blank', isolatedContext: 'ctx-b'}},
 -          response,
 -          context,
 -        );
--        const pageB = context.getSelectedPptrPage();
+-        const pageB = context.getSelectedMcpPage().pptrPage;
 -
 -        // Selecting pageB (ctx-b) should not defocus pageA (ctx-a).
 -        assert.strictEqual(
@@ -3003,14 +3065,14 @@ index 038532f..2574a1d 100644
  
      it('when dialog is open', async t => {
        await withMcpContext(async (response, context) => {
-@@ -898,380 +573,6 @@ describe('pages', () => {
+@@ -898,380 +572,6 @@ describe('pages', () => {
        });
      });
    });
 -  describe('resize', () => {
 -    it('resize the page', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const resizePromise = page.evaluate(() => {
 -          return new Promise(resolve => {
 -            window.addEventListener('resize', resolve, {once: true});
@@ -3037,7 +3099,7 @@ index 038532f..2574a1d 100644
 -
 -    it('resize when window state is normal', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const browser = page.browser();
 -        const windowId = await page.windowId();
 -        await browser.setWindowBounds(windowId, {windowState: 'normal'});
@@ -3071,7 +3133,7 @@ index 038532f..2574a1d 100644
 -
 -    it('resize when window state is minimized', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const browser = page.browser();
 -        const windowId = await page.windowId();
 -        await browser.setWindowBounds(windowId, {windowState: 'minimized'});
@@ -3105,7 +3167,7 @@ index 038532f..2574a1d 100644
 -
 -    it('resize when window state is maximized', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const browser = page.browser();
 -        const windowId = await page.windowId();
 -        await browser.setWindowBounds(windowId, {windowState: 'maximized'});
@@ -3139,7 +3201,7 @@ index 038532f..2574a1d 100644
 -
 -    it('resize when window state is fullscreen', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const browser = page.browser();
 -        const windowId = await page.windowId();
 -        await browser.setWindowBounds(windowId, {windowState: 'fullscreen'});
@@ -3173,7 +3235,7 @@ index 038532f..2574a1d 100644
 -
 -    it('when dialog is open', async t => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const dialogPromise = new Promise<Dialog>(resolve => {
 -          page.on('dialog', dialog => {
 -            resolve(dialog);
@@ -3205,7 +3267,7 @@ index 038532f..2574a1d 100644
 -  describe('dialogs', () => {
 -    it('can accept dialogs', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const dialogPromise = new Promise<void>(resolve => {
 -          page.on('dialog', () => {
 -            resolve();
@@ -3235,7 +3297,7 @@ index 038532f..2574a1d 100644
 -    });
 -    it('can dismiss dialogs', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const dialogPromise = new Promise<void>(resolve => {
 -          page.on('dialog', () => {
 -            resolve();
@@ -3265,7 +3327,7 @@ index 038532f..2574a1d 100644
 -    });
 -    it('can dismiss already dismissed dialog dialogs', async () => {
 -      await withMcpContext(async (response, context) => {
--        const page = context.getSelectedPptrPage();
+-        const page = context.getSelectedMcpPage().pptrPage;
 -        const dialogPromise = new Promise<Dialog>(resolve => {
 -          page.on('dialog', dialog => {
 -            resolve(dialog);
@@ -3386,7 +3448,7 @@ index 038532f..2574a1d 100644
      it('returns the tab id', async () => {
 diff --git a/tests/tools/performance.test.ts b/tests/tools/performance.test.ts
 deleted file mode 100644
-index b9d1c78..0000000
+index 71e6a8c..0000000
 --- a/tests/tools/performance.test.ts
 +++ /dev/null
 @@ -1,573 +0,0 @@
@@ -3438,7 +3500,7 @@ index b9d1c78..0000000
 -    it('starts a trace recording', async () => {
 -      await withMcpContext(async (response, context) => {
 -        context.setIsRunningPerformanceTrace(false);
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        const startTracingStub = sinon.stub(selectedPage.tracing, 'start');
 -        await startTrace.handler(
 -          {
@@ -3460,7 +3522,7 @@ index b9d1c78..0000000
 -
 -    it('can navigate to about:blank and record a page reload', async () => {
 -      await withMcpContext(async (response, context) => {
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        sinon.stub(selectedPage, 'url').callsFake(() => 'https://www.test.com');
 -        const gotoStub = sinon.stub(selectedPage, 'goto');
 -        const startTracingStub = sinon.stub(selectedPage.tracing, 'start');
@@ -3492,7 +3554,7 @@ index b9d1c78..0000000
 -      const rawData = loadTraceAsBuffer('basic-trace.json.gz');
 -
 -      await withMcpContext(async (response, context) => {
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        sinon.stub(selectedPage, 'url').callsFake(() => 'https://www.test.com');
 -        sinon.stub(selectedPage, 'goto').callsFake(() => Promise.resolve(null));
 -        const startTracingStub = sinon.stub(selectedPage.tracing, 'start');
@@ -3539,7 +3601,7 @@ index b9d1c78..0000000
 -    it('errors if a recording is already active', async () => {
 -      await withMcpContext(async (response, context) => {
 -        context.setIsRunningPerformanceTrace(true);
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        const startTracingStub = sinon.stub(selectedPage.tracing, 'start');
 -        await startTrace.handler(
 -          {
@@ -3566,7 +3628,7 @@ index b9d1c78..0000000
 -
 -      await withMcpContext(async (response, context) => {
 -        const filePath = 'test-trace.json.gz';
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        sinon.stub(selectedPage, 'url').callsFake(() => 'https://www.test.com');
 -        sinon.stub(selectedPage, 'goto').callsFake(() => Promise.resolve(null));
 -        sinon.stub(selectedPage.tracing, 'start');
@@ -3665,7 +3727,7 @@ index b9d1c78..0000000
 -    it('does nothing if the trace is not running and does not error', async () => {
 -      await withMcpContext(async (response, context) => {
 -        context.setIsRunningPerformanceTrace(false);
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        const stopTracingStub = sinon.stub(selectedPage.tracing, 'stop');
 -        await stopTrace.handler(
 -          {params: {}, page: context.getSelectedMcpPage()},
@@ -3681,7 +3743,7 @@ index b9d1c78..0000000
 -      const rawData = loadTraceAsBuffer('basic-trace.json.gz');
 -      await withMcpContext(async (response, context) => {
 -        context.setIsRunningPerformanceTrace(true);
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        const stopTracingStub = sinon
 -          .stub(selectedPage.tracing, 'stop')
 -          .callsFake(async () => {
@@ -3705,7 +3767,7 @@ index b9d1c78..0000000
 -    it('throws an error if parsing the trace buffer fails', async () => {
 -      await withMcpContext(async (response, context) => {
 -        context.setIsRunningPerformanceTrace(true);
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        sinon
 -          .stub(selectedPage.tracing, 'stop')
 -          .returns(Promise.resolve(undefined));
@@ -3726,7 +3788,7 @@ index b9d1c78..0000000
 -      await withMcpContext(async (response, context) => {
 -        const filePath = 'test-trace.json';
 -        context.setIsRunningPerformanceTrace(true);
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        const stopTracingStub = sinon
 -          .stub(selectedPage.tracing, 'stop')
 -          .resolves(rawData);
@@ -3756,7 +3818,7 @@ index b9d1c78..0000000
 -      await withMcpContext(
 -        async (response, context) => {
 -          context.setIsRunningPerformanceTrace(true);
--          const selectedPage = context.getSelectedPptrPage();
+-          const selectedPage = context.getSelectedMcpPage().pptrPage;
 -          sinon.stub(selectedPage.tracing, 'stop').resolves(rawData);
 -
 -          await stopTrace.handler(
@@ -3784,7 +3846,7 @@ index b9d1c78..0000000
 -      const rawData = loadTraceAsBuffer('web-dev-with-commit.json.gz');
 -      await withMcpContext(async (response, context) => {
 -        context.setIsRunningPerformanceTrace(true);
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        sinon.stub(selectedPage.tracing, 'stop').resolves(rawData);
 -
 -        const fetchStub = globalThis.fetch as sinon.SinonStub;
@@ -3837,7 +3899,7 @@ index b9d1c78..0000000
 -
 -      await withMcpContext(async (response, context) => {
 -        context.setIsRunningPerformanceTrace(true);
--        const selectedPage = context.getSelectedPptrPage();
+-        const selectedPage = context.getSelectedMcpPage().pptrPage;
 -        sinon.stub(selectedPage.tracing, 'stop').resolves(modifiedData);
 -
 -        // Emulate mobile
@@ -3964,7 +4026,7 @@ index b9d1c78..0000000
 -  };
 -}
 diff --git a/tests/tools/script.test.ts b/tests/tools/script.test.ts
-index 1302586..27637fb 100644
+index c2883ab..948badb 100644
 --- a/tests/tools/script.test.ts
 +++ b/tests/tools/script.test.ts
 @@ -5,26 +5,17 @@

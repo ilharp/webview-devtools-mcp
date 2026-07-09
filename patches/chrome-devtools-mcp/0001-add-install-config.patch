@@ -8,10 +8,10 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 3 insertions(+)
 
 diff --git a/package.json b/package.json
-index 5019425..9184887 100644
+index 00fa98e..76daaba 100644
 --- a/package.json
 +++ b/package.json
-@@ -97,6 +97,9 @@
+@@ -96,6 +96,9 @@
        "optional": true
      }
    },

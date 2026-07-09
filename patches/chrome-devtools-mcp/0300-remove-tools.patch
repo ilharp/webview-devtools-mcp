@@ -4,10 +4,10 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/tools/input.ts |   89 -------------------------
- src/tools/pages.ts |  184 ----------------------------------------------------
- src/tools/tools.ts |   12 ---
- 3 files changed, 1 insertion(+), 284 deletions(-)
+ src/tools/input.ts |   89 --------------------------
+ src/tools/pages.ts |  175 ----------------------------------------------------
+ src/tools/tools.ts |   12 ----
+ 3 files changed, 2 insertions(+), 274 deletions(-)
 
 diff --git a/src/tools/input.ts b/src/tools/input.ts
 index 2485856..6a61944 100644
@@ -117,18 +117,18 @@ index 2485856..6a61944 100644
    name: 'press_key',
    description: `Press a key or key combination. Use this when other input methods like fill() cannot be used (e.g., keyboard shortcuts, navigation keys, or special key combinations).`,
 diff --git a/src/tools/pages.ts b/src/tools/pages.ts
-index 0a74aa2..7b9ec64 100644
+index 776f19d..5ed7310 100644
 --- a/src/tools/pages.ts
 +++ b/src/tools/pages.ts
-@@ -11,7 +11,6 @@ import {zod} from '../third_party/index.js';
+@@ -10,7 +10,6 @@ import {zod} from '../third_party/index.js';
+ 
  import {ToolCategory} from './categories.js';
- import type {ContextPage} from './ToolDefinition.js';
  import {
 -  CLOSE_PAGE_ERROR,
    definePageTool,
    defineTool,
    timeoutSchema,
-@@ -126,95 +125,6 @@ export const selectPage = defineTool({
+@@ -67,85 +66,7 @@ export const selectPage = defineTool({
    },
  });
  
@@ -161,7 +161,7 @@ index 0a74aa2..7b9ec64 100644
 -  },
 -});
 -
--export const newPage = defineTool(args => {
+-export const newPage = defineTool(() => {
 -  return {
 -    name: 'new_page',
 -    description: `Open a new tab and load a URL. Use project URL if not specified otherwise.`,
@@ -185,16 +185,6 @@ index 0a74aa2..7b9ec64 100644
 -            'Pages in the same browser context share cookies and storage. ' +
 -            'Pages in different browser contexts are fully isolated.',
 -        ),
--      ...(args?.experimentalNavigationAllowlist
--        ? {
--            allowList: zod
--              .string()
--              .optional()
--              .describe(
--                'Optional comma-separated list of URL patterns to allow. If provided, all other navigations will be blocked.',
--              ),
--          }
--        : {}),
 -      ...timeoutSchema,
 -    },
 -    blockedByDialog: false,
@@ -205,14 +195,13 @@ index 0a74aa2..7b9ec64 100644
 -        request.params.isolatedContext,
 -      );
 -
--      await navigateWithInterception(
--        page,
--        () =>
--          page.pptrPage.goto(request.params.url, {
+-      await page.waitForEventsAfterAction(
+-        async () => {
+-          await page.pptrPage.goto(request.params.url, {
 -            timeout: request.params.timeout,
--          }),
--        request.params.allowList,
--        request.params.timeout,
+-          });
+-        },
+-        {timeout: request.params.timeout},
 -      );
 -
 -      response.setIncludePages(true);
@@ -221,10 +210,12 @@ index 0a74aa2..7b9ec64 100644
 -  };
 -});
 -
- export const navigatePage = definePageTool(args => {
+-export const navigatePage = definePageTool(() => {
++export const navigatePage = definePageTool(args => {
    return {
      name: 'navigate_page',
-@@ -384,100 +294,6 @@ export const navigatePage = definePageTool(args => {
+     description: `Go to a URL, or back, forward, or reload. Use project URL if not specified otherwise.`,
+@@ -302,100 +223,6 @@ export const navigatePage = definePageTool(() => {
    };
  });
  

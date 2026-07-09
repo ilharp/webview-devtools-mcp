@@ -13,7 +13,7 @@ From: Il Harper <hi@ilharper.com>
  6 files changed, 21 insertions(+), 232 deletions(-)
 
 diff --git a/src/McpContext.ts b/src/McpContext.ts
-index 67c31b2..b0fb466 100644
+index 89f8098..4d94c68 100644
 --- a/src/McpContext.ts
 +++ b/src/McpContext.ts
 @@ -63,8 +63,6 @@ interface McpContextOptions {
@@ -25,7 +25,7 @@ index 67c31b2..b0fb466 100644
    // The allow list of URL patterns to allow loading resources.
    allowList?: string[];
    // The block list of URL patterns to block loading resources.
-@@ -527,10 +525,6 @@ export class McpContext implements Context {
+@@ -536,10 +534,6 @@ export class McpContext implements Context {
      this.#screenRecorderData = data;
    }
  
@@ -33,11 +33,11 @@ index 67c31b2..b0fb466 100644
 -    return this.#options.performanceCrux;
 -  }
 -
-   getSelectedPptrPage(): Page {
+   getSelectedMcpPage(): McpPage {
      const page = this.#selectedPage;
      if (!page) {
 diff --git a/src/bin/chrome-devtools-mcp-cli-options.ts b/src/bin/chrome-devtools-mcp-cli-options.ts
-index 2fe8fc6..ecce4f5 100644
+index c943b7c..21f44de 100644
 --- a/src/bin/chrome-devtools-mcp-cli-options.ts
 +++ b/src/bin/chrome-devtools-mcp-cli-options.ts
 @@ -8,141 +8,38 @@ import type {YargsOptions} from '../third_party/index.js';
@@ -199,7 +199,7 @@ index 2fe8fc6..ecce4f5 100644
    acceptInsecureCerts: {
      type: 'boolean',
      description: `If enabled, ignores errors relative to self-signed and expired certificates. Use with caution.`,
-@@ -213,11 +110,6 @@ export const cliOptions = {
+@@ -208,11 +105,6 @@ export const cliOptions = {
      describe:
        'Set to true to enable debugging WebMCP tools. Requires Chrome 149+ with the following flags: `--enable-features=WebMCP,DevToolsWebMCPSupport`',
    },
@@ -211,7 +211,7 @@ index 2fe8fc6..ecce4f5 100644
    blockedUrlPattern: {
      type: 'array',
      describe:
-@@ -230,11 +122,6 @@ export const cliOptions = {
+@@ -225,11 +117,6 @@ export const cliOptions = {
        "Restricts browser's network access by allowing only specified URL patterns (uses https://urlpattern.spec.whatwg.org/). Requires Chrome 149+. Silently detaches from targets with unallowed URLs upon connection, and blocks runtime requests (including navigations and subresources). Accepts an array of patterns.",
      conflicts: ['blockedUrlPattern'],
    },
@@ -223,7 +223,7 @@ index 2fe8fc6..ecce4f5 100644
    categoryEmulation: {
      type: 'boolean',
      default: true,
-@@ -263,18 +150,6 @@ export const cliOptions = {
+@@ -258,18 +145,6 @@ export const cliOptions = {
      describe:
        'Set to true to enable third-party developer tools exposed by the inspected page itself',
    },
@@ -242,7 +242,7 @@ index 2fe8fc6..ecce4f5 100644
    clearcutEndpoint: {
      type: 'string',
      hidden: true,
-@@ -383,72 +258,24 @@ export function parseArguments(
+@@ -378,72 +253,24 @@ export function parseArguments(
      .scriptName('npx chrome-devtools-mcp@latest')
      .options(cliOptions)
      .middleware(args => {
@@ -377,10 +377,10 @@ index 9aeb30c..9dce8ee 100644
 -  }
  };
 diff --git a/src/tools/ToolDefinition.ts b/src/tools/ToolDefinition.ts
-index 36948e2..a877595 100644
+index e4b1797..28b0882 100644
 --- a/src/tools/ToolDefinition.ts
 +++ b/src/tools/ToolDefinition.ts
-@@ -198,7 +198,6 @@ export type Context = Readonly<{
+@@ -195,7 +195,6 @@ export type Context = Readonly<{
    ): Promise<`${string}${Extension}`>;
    isRunningPerformanceTrace(): boolean;
    setIsRunningPerformanceTrace(x: boolean): void;

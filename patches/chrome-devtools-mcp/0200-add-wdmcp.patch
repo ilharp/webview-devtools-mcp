@@ -10,10 +10,10 @@ From: Il Harper <hi@ilharper.com>
  create mode 100644 src/wdmcp.ts
 
 diff --git a/src/third_party/index.ts b/src/third_party/index.ts
-index e9e6cfc..33ab0fe 100644
+index 41772e3..caef5a0 100644
 --- a/src/third_party/index.ts
 +++ b/src/third_party/index.ts
-@@ -87,3 +87,7 @@ export const generateReport = generateReportImpl as (
+@@ -86,3 +86,7 @@ export const generateReport = generateReportImpl as (
  ) => string;
  
  export * as DevTools from '../../node_modules/chrome-devtools-frontend/mcp/mcp.js';
