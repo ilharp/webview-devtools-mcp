@@ -4,14 +4,14 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- README.md |  522 ++++++++++++++++++-------------------------------------------
- 1 file changed, 157 insertions(+), 365 deletions(-)
+ README.md |  524 +++++++++++++++++++------------------------------------------
+ 1 file changed, 161 insertions(+), 363 deletions(-)
 
 diff --git a/README.md b/README.md
-index a8b18a8..67e89b7 100644
+index a8b18a8..188b3b7 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,58 +1,26 @@
+@@ -1,58 +1,32 @@
 -# Chrome DevTools for agents
 +# webview-devtools-mcp
  
@@ -44,28 +44,32 @@ index a8b18a8..67e89b7 100644
 +## [Tool reference](./docs/tool-reference.md) | [Troubleshooting](./docs/troubleshooting.md)
  
 -## Disclaimers
-+## How it works
++## Screenshots
  
 -`chrome-devtools-mcp` exposes content of the browser instance to the MCP clients
 -allowing them to inspect, debug, and modify any data in the browser or DevTools.
 -Avoid sharing sensitive or personal information that you don't want to share with
 -MCP clients.
++| Lark Web App |
++| - |
++| ![Lark Web App](./docs/assets/lark.gif) |
+ 
+-`chrome-devtools-mcp` officially supports Google Chrome and [Chrome for Testing](https://developer.chrome.com/blog/chrome-for-testing/) only.
+-Other Chromium-based browsers may work, but this is not guaranteed, and you may encounter unexpected behavior. Use at your own discretion.
+-We are committed to providing fixes and support for the latest version of [Extended Stable Chrome](https://chromiumdash.appspot.com/schedule).
++## How it works
+ 
+-Performance tools may send trace URLs to the Google CrUX API to fetch real-user
+-experience data. This helps provide a holistic performance picture by
+-presenting field data alongside lab data. This data is collected by the [Chrome
+-User Experience Report (CrUX)](https://developer.chrome.com/docs/crux). To disable
+-this, run with the `--no-performance-crux` flag.
 +1. Your MCP client starts `webview-devtools-mcp`.
 +2. The server listens on `--host`/`--port` and serves `target.js`.
 +3. You add a `<script>` tag for that `target.js` to the starting HTML that your WebView loads.
 +4. When the WebView opens or reloads, it connects to the MCP server.
 +5. Your agent can list the connected page and drive it through the MCP tools.
  
--`chrome-devtools-mcp` officially supports Google Chrome and [Chrome for Testing](https://developer.chrome.com/blog/chrome-for-testing/) only.
--Other Chromium-based browsers may work, but this is not guaranteed, and you may encounter unexpected behavior. Use at your own discretion.
--We are committed to providing fixes and support for the latest version of [Extended Stable Chrome](https://chromiumdash.appspot.com/schedule).
--
--Performance tools may send trace URLs to the Google CrUX API to fetch real-user
--experience data. This helps provide a holistic performance picture by
--presenting field data alongside lab data. This data is collected by the [Chrome
--User Experience Report (CrUX)](https://developer.chrome.com/docs/crux). To disable
--this, run with the `--no-performance-crux` flag.
--
 -## **Usage statistics**
 -
 -Google collects usage statistics (such as tool invocation success rates, latency, and environment information) to improve the reliability and performance of Chrome DevTools MCP.
@@ -85,7 +89,7 @@ index a8b18a8..67e89b7 100644
  
  ## Update checks
  
-@@ -62,35 +30,49 @@ You can disable these update checks by setting the `CHROME_DEVTOOLS_MCP_NO_UPDAT
+@@ -62,35 +36,49 @@ You can disable these update checks by setting the `CHROME_DEVTOOLS_MCP_NO_UPDAT
  ## Requirements
  
  - [Node.js](https://nodejs.org/) [LTS](https://github.com/nodejs/Release#release-schedule) version.
@@ -141,7 +145,7 @@ index a8b18a8..67e89b7 100644
      }
    }
  }
-@@ -98,14 +80,79 @@ If you are interested in doing only basic browser tasks, use the `--slim` mode:
+@@ -98,14 +86,79 @@ If you are interested in doing only basic browser tasks, use the `--slim` mode:
  
  See [Slim tool reference](./docs/slim-tool-reference.md).
  
@@ -224,7 +228,7 @@ index a8b18a8..67e89b7 100644
  ```
  
  </details>
-@@ -113,27 +160,22 @@ amp mcp add chrome-devtools -- npx chrome-devtools-mcp@latest
+@@ -113,27 +166,22 @@ amp mcp add chrome-devtools -- npx chrome-devtools-mcp@latest
  <details>
    <summary>Antigravity</summary>
  
@@ -255,7 +259,7 @@ index a8b18a8..67e89b7 100644
  </details>
  
  <details>
-@@ -141,27 +183,24 @@ Chrome DevTools MCP will not start the browser instance automatically using this
+@@ -141,27 +189,24 @@ Chrome DevTools MCP will not start the browser instance automatically using this
  
  **Install via CLI (MCP only)**
  
@@ -288,7 +292,7 @@ index a8b18a8..67e89b7 100644
  ```
  
  Restart Claude Code to have the MCP server and skills load (check with `/skills`).
-@@ -179,27 +218,10 @@ Restart Claude Code to have the MCP server and skills load (check with `/skills`
+@@ -179,27 +224,10 @@ Restart Claude Code to have the MCP server and skills load (check with `/skills`
  <details>
    <summary>Codex</summary>
    Follow the <a href="https://developers.openai.com/codex/mcp/#configure-with-the-cli">configure MCP guide</a>
@@ -318,7 +322,7 @@ index a8b18a8..67e89b7 100644
  ```
  
  </details>
-@@ -207,10 +229,10 @@ startup_timeout_ms = 20_000
+@@ -207,10 +235,10 @@ startup_timeout_ms = 20_000
  <details>
    <summary>Command Code</summary>
  
@@ -331,7 +335,7 @@ index a8b18a8..67e89b7 100644
  ```
  
  </details>
-@@ -232,9 +254,9 @@ Start the dialog to add a new MCP server by running:
+@@ -232,9 +260,9 @@ Start the dialog to add a new MCP server by running:
  
  Configure the following fields and press `CTRL+S` to save the configuration:
  
@@ -343,7 +347,7 @@ index a8b18a8..67e89b7 100644
  
  </details>
  
-@@ -243,41 +265,15 @@ Configure the following fields and press `CTRL+S` to save the configuration:
+@@ -243,41 +271,15 @@ Configure the following fields and press `CTRL+S` to save the configuration:
  
  **Install as a Plugin (Recommended)**
  
@@ -357,14 +361,14 @@ index a8b18a8..67e89b7 100644
 -3.  Paste in our repository name: `ChromeDevTools/chrome-devtools-mcp`.
 -
 -That's it! Your agent is now supercharged with Chrome DevTools capabilities.
--
++3.  Paste in our repository name: `ilharp/webview-devtools-mcp`.
+ 
 ----
 -
 -**Install as an MCP Server (MCP only)**
 -
 -**Click the button to install:**
-+3.  Paste in our repository name: `ilharp/webview-devtools-mcp`.
- 
+-
 -[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://vscode.dev/redirect/mcp/install?name=io.github.ChromeDevTools%2Fchrome-devtools-mcp&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22chrome-devtools-mcp%22%5D%2C%22env%22%3A%7B%7D%7D)
 -
 -[<img src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5" alt="Install in VS Code Insiders">](https://insiders.vscode.dev/redirect?url=vscode-insiders%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522io.github.ChromeDevTools%252Fchrome-devtools-mcp%2522%252C%2522config%2522%253A%257B%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522-y%2522%252C%2522chrome-devtools-mcp%2522%255D%252C%2522env%2522%253A%257B%257D%257D%257D)
@@ -388,7 +392,7 @@ index a8b18a8..67e89b7 100644
  
  </details>
  
-@@ -286,7 +282,7 @@ code --add-mcp '{"""name""":"""io.github.ChromeDevTools/chrome-devtools-mcp""","
+@@ -286,7 +288,7 @@ code --add-mcp '{"""name""":"""io.github.ChromeDevTools/chrome-devtools-mcp""","
  
  **Click the button to install:**
  
@@ -397,7 +401,7 @@ index a8b18a8..67e89b7 100644
  
  **Or install manually:**
  
-@@ -296,31 +292,31 @@ Go to `Cursor Settings` -> `MCP` -> `New MCP Server`. Use the config provided ab
+@@ -296,31 +298,31 @@ Go to `Cursor Settings` -> `MCP` -> `New MCP Server`. Use the config provided ab
  
  <details>
    <summary>Factory CLI</summary>
@@ -435,7 +439,7 @@ index a8b18a8..67e89b7 100644
  ```
  
  Alternatively, follow the <a href="https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#how-to-set-up-your-mcp-server">MCP guide</a> and use the standard config from above.
-@@ -337,7 +333,7 @@ Alternatively, follow the <a href="https://github.com/google-gemini/gemini-cli/b
+@@ -337,7 +339,7 @@ Alternatively, follow the <a href="https://github.com/google-gemini/gemini-cli/b
    <summary>Grok Build CLI</summary>
  
  ```bash
@@ -444,7 +448,7 @@ index a8b18a8..67e89b7 100644
  ```
  
  See the <a href="https://docs.x.ai/build/features/skills-plugins-marketplaces">docs</a> for more options
-@@ -347,7 +343,7 @@ See the <a href="https://docs.x.ai/build/features/skills-plugins-marketplaces">d
+@@ -347,7 +349,7 @@ See the <a href="https://docs.x.ai/build/features/skills-plugins-marketplaces">d
    <summary>JetBrains AI Assistant & Junie</summary>
  
  Go to `Settings | Tools | AI Assistant | Model Context Protocol (MCP)` -> `Add`. Use the config provided above.
@@ -453,7 +457,7 @@ index a8b18a8..67e89b7 100644
  
  </details>
  
-@@ -360,30 +356,6 @@ Or, from the IDE **Activity Bar** > `Kiro` > `MCP Servers` > `Click Open MCP Con
+@@ -360,30 +362,6 @@ Or, from the IDE **Activity Bar** > `Kiro` > `MCP Servers` > `Click Open MCP Con
  
  </details>
  
@@ -484,7 +488,7 @@ index a8b18a8..67e89b7 100644
  <details>
    <summary>Mistral Vibe</summary>
  
-@@ -391,10 +363,10 @@ Add in ~/.vibe/config.toml:
+@@ -391,10 +369,10 @@ Add in ~/.vibe/config.toml:
  
  ```toml
  [[mcp_servers]]
@@ -497,7 +501,7 @@ index a8b18a8..67e89b7 100644
  ```
  
  </details>
-@@ -408,9 +380,9 @@ Add the following configuration to your `opencode.json` file. If you don't have
+@@ -408,9 +386,9 @@ Add the following configuration to your `opencode.json` file. If you don't have
  {
    "$schema": "https://opencode.ai/config.json",
    "mcp": {
@@ -509,7 +513,7 @@ index a8b18a8..67e89b7 100644
      }
    }
  }
-@@ -430,18 +402,18 @@ Alternatively, follow the <a href="https://docs.qoder.com/user-guide/chat/model-
+@@ -430,18 +408,18 @@ Alternatively, follow the <a href="https://docs.qoder.com/user-guide/chat/model-
  <details>
    <summary>Qoder CLI</summary>
  
@@ -531,7 +535,7 @@ index a8b18a8..67e89b7 100644
  ```
  
  </details>
-@@ -451,7 +423,7 @@ qodercli mcp add -s user chrome-devtools -- npx chrome-devtools-mcp@latest
+@@ -451,7 +429,7 @@ qodercli mcp add -s user chrome-devtools -- npx chrome-devtools-mcp@latest
  
  **Click the button to install:**
  
@@ -540,7 +544,7 @@ index a8b18a8..67e89b7 100644
  
  </details>
  
-@@ -468,18 +440,18 @@ Go to `Settings | AI | Manage MCP Servers` -> `+ Add` to [add an MCP Server](htt
+@@ -468,18 +446,18 @@ Go to `Settings | AI | Manage MCP Servers` -> `+ Add` to [add an MCP Server](htt
    using the standard config from above.
  </details>
  
@@ -565,7 +569,7 @@ index a8b18a8..67e89b7 100644
  
  ## Tools
  
-@@ -553,7 +525,7 @@ If you run into any issues, checkout our [troubleshooting guide](./docs/troubles
+@@ -553,7 +531,7 @@ If you run into any issues, checkout our [troubleshooting guide](./docs/troubles
  
  ## Configuration
  
@@ -574,7 +578,7 @@ index a8b18a8..67e89b7 100644
  
  <!-- BEGIN AUTO GENERATED OPTIONS -->
  
-@@ -766,218 +738,38 @@ Pass them via the `args` property in the JSON configuration. For example:
+@@ -766,218 +744,38 @@ Pass them via the `args` property in the JSON configuration. For example:
  ```json
  {
    "mcpServers": {
@@ -656,25 +660,20 @@ index a8b18a8..67e89b7 100644
 -
 -- Linux / macOS: `$HOME/.cache/chrome-devtools-mcp/chrome-profile-$CHANNEL`
 -- Windows: `%HOMEPATH%/.cache/chrome-devtools-mcp/chrome-profile-$CHANNEL`
-+### Instrumented WebViews, not launched browser tabs
- 
+-
 -The user data directory is not cleared between runs and shared across
 -all instances of `chrome-devtools-mcp`. Set the `isolated` option to `true`
 -to use a temporary user data dir instead which will be cleared automatically after
 -the browser is closed.
-+`webview-devtools-mcp` can inspect and automate pages that have loaded `target.js`. It cannot inject the script into an arbitrary page by itself, and it cannot create a new WebView for you. If `list_pages` returns no pages, open or reload the WebView and verify that the script URL is reachable from that runtime.
- 
+-
 -### Connecting to a running Chrome instance
-+### Navigation
- 
+-
 -By default, the Chrome DevTools MCP server will start a new Chrome instance with a dedicated profile. This might not be ideal in all situations:
-+`navigate_page` operates on an already connected page. If navigation takes the WebView to a document that does not load `target.js`, the page will disconnect and no further tools can operate on it until an instrumented page loads again.
- 
+-
 -- If you would like to maintain the same application state when alternating between manual site testing and agent-driven testing.
 -- When the MCP needs to sign into a website. Some accounts may prevent sign-in when the browser is controlled via WebDriver (the default launch mechanism for the Chrome DevTools MCP server).
 -- If you're running your LLM inside a sandboxed environment, but you would like to connect to a Chrome instance that runs outside the sandbox.
-+### Security and privacy
- 
+-
 -In these cases, start Chrome first and let the Chrome DevTools MCP server connect to it. There are two ways to do so:
 -
 -- **Automatic connection (available in Chrome 144)**: best for sharing state between manual and agent-driven testing.
@@ -708,29 +707,34 @@ index a8b18a8..67e89b7 100644
 -```
 -
 -**Step 3:** Test your setup
--
++### Instrumented WebViews, not launched browser tabs
+ 
 -Make sure your browser is running. Open gemini-cli and run the following prompt:
--
++`webview-devtools-mcp` can inspect and automate pages that have loaded `target.js`. It cannot inject the script into an arbitrary page by itself, and it cannot create a new WebView for you. If `list_pages` returns no pages, open or reload the WebView and verify that the script URL is reachable from that runtime.
+ 
 -```none
 -Check the performance of https://developers.chrome.com
 -```
 -
 -> [!NOTE]
 -> The <code>autoConnect</code> option requires the user to start Chrome. If the user has multiple active profiles, the MCP server will connect to the default profile (as determined by Chrome). The MCP server has access to all open windows for the selected profile.
-+`webview-devtools-mcp` exposes the connected page to MCP clients. A connected agent may inspect page content, read console output, observe network requests, execute JavaScript, click, type, and otherwise interact with the page.
++### Navigation
  
 -The Chrome DevTools MCP server will try to connect to your running Chrome
 -instance. It shows a dialog asking for user permission.
-+Only connect pages and MCP clients that you trust. Avoid opening sensitive personal or production data in an instrumented WebView unless you intend to make it available to the connected MCP client.
++`navigate_page` operates on an already connected page. If navigation takes the WebView to a document that does not load `target.js`, the page will disconnect and no further tools can operate on it until an instrumented page loads again.
  
 -Clicking **Allow** results in the Chrome DevTools MCP server opening
 -[developers.chrome.com](http://developers.chrome.com) and taking a performance
 -trace.
--
++### Security and privacy
+ 
 -#### Manual connection using port forwarding
--
++`webview-devtools-mcp` exposes the connected page to MCP clients. A connected agent may inspect page content, read console output, observe network requests, execute JavaScript, click, type, and otherwise interact with the page.
+ 
 -You can connect to a running Chrome instance by using the `--browser-url` option. This is useful if you are running the MCP server in a sandboxed environment that does not allow starting a new Chrome instance.
--
++Only connect pages and MCP clients that you trust. Avoid opening sensitive personal or production data in an instrumented WebView unless you intend to make it available to the connected MCP client.
+ 
 -Here is a step-by-step guide on how to connect to a running Chrome instance:
 -
 -**Step 1: Configure the MCP client**
