@@ -1,0 +1,12 @@
+{
+  "name": "webview-devtools-mcp",
+  "version": "0.1.0",
+  "mcpServers": {
+    "webview-devtools": {
+      "command": "npx",
+      "args": [
+        "webview-devtools-mcp@0.1.0"
+      ]
+    }
+  }
+}
