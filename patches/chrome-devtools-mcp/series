@@ -2,6 +2,8 @@
 0001-add-install-config.patch
 0003-add-deps.patch
 0010-ignore-license-check.patch
+0020-modify-project.patch
+0030-modify-scripts.patch
 0050-update-readme.patch
 0080-remove-tests.patch
 0100-modify-cli-args.patch

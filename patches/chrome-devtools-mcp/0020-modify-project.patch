@@ -1,0 +1,60 @@
+chore: modify project
+
+From: Il Harper <hi@ilharper.com>
+
+
+---
+ package.json |   26 +++++++++++++++-----------
+ 1 file changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/package.json b/package.json
+index 4bd93f9..ca86105 100644
+--- a/package.json
++++ b/package.json
+@@ -1,11 +1,11 @@
+ {
+-  "name": "chrome-devtools-mcp",
+-  "version": "1.5.0",
+-  "description": "MCP server for Chrome DevTools",
++  "name": "webview-devtools-mcp",
++  "version": "0.1.0",
++  "description": "DevTools for any WebView — no remote-debugging port required. Works in Safari/iOS WebView/Lark Web App and more.",
+   "type": "module",
+   "bin": {
+-    "chrome-devtools-mcp": "./build/src/bin/chrome-devtools-mcp.js",
+-    "chrome-devtools": "./build/src/bin/chrome-devtools.js"
++    "webview-devtools-mcp": "./build/src/bin/chrome-devtools-mcp.js",
++    "webview-devtools": "./build/src/bin/chrome-devtools.js"
+   },
+   "main": "./build/src/index.js",
+   "scripts": {
+@@ -34,19 +34,23 @@
+   },
+   "files": [
+     "build/src",
++    "build/server",
+     "LICENSE",
+-    "skills",
+     "!*.tsbuildinfo",
+     "!*.js.map"
+   ],
+-  "repository": "ChromeDevTools/chrome-devtools-mcp",
+-  "author": "Google LLC",
++  "repository": "ilharp/webview-devtools-mcp",
++  "author": {
++    "name": "Il Harper",
++    "email": "hi@ilharper.com",
++    "url": "https://ilharper.com"
++  },
+   "license": "Apache-2.0",
+   "bugs": {
+-    "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp/issues"
++    "url": "https://github.com/ilharp/webview-devtools-mcp/issues"
+   },
+-  "homepage": "https://github.com/ChromeDevTools/chrome-devtools-mcp#readme",
+-  "mcpName": "io.github.ChromeDevTools/chrome-devtools-mcp",
++  "homepage": "https://github.com/ilharp/webview-devtools-mcp",
++  "mcpName": "com.ilharper/webview-devtools-mcp",
+   "devDependencies": {
+     "@eslint/js": "^9.35.0",
+     "@google/genai": "^2.0.1",
