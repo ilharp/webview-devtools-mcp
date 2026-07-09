@@ -1,6 +1,8 @@
 
 .DEFAULT_GOAL := all
 
+PARAL := -j16
+
 .PHONY: all
 all: build
 
@@ -8,7 +10,13 @@ all: build
 build: install-deps .WAIT build-server build-chii build-cdmcp .WAIT copy-chobitsu-dist
 
 .PHONY: ci
-ci: stg-import .WAIT build .WAIT cdmcp-gen .WAIT build-cdmcp .WAIT copy-chobitsu-dist .WAIT npm-pack
+ci:
+	$(MAKE) stg-import $(PARAL)
+	$(MAKE) build $(PARAL)
+	$(MAKE) cdmcp-gen $(PARAL)
+	$(MAKE) build-cdmcp $(PARAL)
+	$(MAKE) copy-chobitsu-dist $(PARAL)
+	$(MAKE) npm-pack $(PARAL)
 
 .PHONY: stg-import
 stg-import:
