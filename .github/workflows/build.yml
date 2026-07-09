@@ -23,6 +23,12 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Configure Git Identity
+        run: |
+          git config --global user.name "Il Harper"
+          git config --global user.email "hi@ilharper.com"
+        shell: bash
+
       - name: Setup stgit
         run: |
           sudo apt update
