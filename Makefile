@@ -50,7 +50,7 @@ cdmcp-gen:
 
 .PHONY: npm-pack
 npm-pack:
-	cd packages/chrome-devtools-mcp && yarn pack --out build/webview-devtools-mcp.tgz
+	cd packages/chrome-devtools-mcp && npm pack --pack-destination build
 
 .PHONY: copy-chobitsu-dist
 copy-chobitsu-dist:
