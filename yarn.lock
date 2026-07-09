@@ -5567,60 +5567,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chrome-devtools-mcp@workspace:packages/chrome-devtools-mcp":
-  version: 0.0.0-use.local
-  resolution: "chrome-devtools-mcp@workspace:packages/chrome-devtools-mcp"
-  dependencies:
-    "@blackwell-systems/gcf": "npm:^2.2.2"
-    "@eslint/js": "npm:^9.35.0"
-    "@google/genai": "npm:^2.0.1"
-    "@modelcontextprotocol/sdk": "npm:1.29.0"
-    "@rollup/plugin-commonjs": "npm:^29.0.0"
-    "@rollup/plugin-json": "npm:^6.1.0"
-    "@rollup/plugin-node-resolve": "npm:^16.0.3"
-    "@stylistic/eslint-plugin": "npm:^5.4.0"
-    "@toon-format/toon": "npm:^2.2.0"
-    "@types/debug": "npm:^4.1.12"
-    "@types/filesystem": "npm:^0.0.36"
-    "@types/node": "npm:^26.0.0"
-    "@types/semver": "npm:^7.7.1"
-    "@types/sinon": "npm:^22.0.0"
-    "@types/yargs": "npm:^17.0.33"
-    "@typescript-eslint/eslint-plugin": "npm:^8.43.0"
-    "@typescript-eslint/parser": "npm:^8.43.0"
-    "@wdmcp/server": "workspace:^"
-    chrome-devtools-frontend: "npm:1.0.1652307"
-    core-js: "npm:3.49.0"
-    debug: "npm:4.4.3"
-    eslint: "npm:^9.35.0"
-    eslint-import-resolver-typescript: "npm:^4.4.4"
-    eslint-plugin-import: "npm:^2.32.0"
-    globals: "npm:^17.0.0"
-    lighthouse: "npm:13.4.0"
-    prettier: "npm:^3.6.2"
-    puppeteer: "npm:25.3.0"
-    rollup: "npm:4.62.2"
-    rollup-plugin-cleanup: "npm:^3.2.1"
-    rollup-plugin-license: "npm:^3.6.0"
-    semver: "npm:^7.7.4"
-    sinon: "npm:^22.0.0"
-    typescript: "npm:^6.0.2"
-    typescript-eslint: "npm:^8.43.0"
-    yargs: "npm:18.0.0"
-  peerDependencies:
-    "@blackwell-systems/gcf": ^2.2.2
-    "@toon-format/toon": ^2.2.0
-  peerDependenciesMeta:
-    "@blackwell-systems/gcf":
-      optional: true
-    "@toon-format/toon":
-      optional: true
-  bin:
-    chrome-devtools: ./build/src/bin/chrome-devtools.js
-    chrome-devtools-mcp: ./build/src/bin/chrome-devtools-mcp.js
-  languageName: unknown
-  linkType: soft
-
 "chrome-launcher@npm:^1.2.1":
   version: 1.2.1
   resolution: "chrome-launcher@npm:1.2.1"
@@ -15785,6 +15731,60 @@ __metadata:
   checksum: 10c0/bbc8c233388a0eb8a40786ee2e30d35935cacbfe26ab188b3e020987e85d519c2009fe07cfc37b7f718b85afdba7e54654c9153e6697301f72561bfe429177e0
   languageName: node
   linkType: hard
+
+"webview-devtools-mcp@workspace:packages/chrome-devtools-mcp":
+  version: 0.0.0-use.local
+  resolution: "webview-devtools-mcp@workspace:packages/chrome-devtools-mcp"
+  dependencies:
+    "@blackwell-systems/gcf": "npm:^2.2.2"
+    "@eslint/js": "npm:^9.35.0"
+    "@google/genai": "npm:^2.0.1"
+    "@modelcontextprotocol/sdk": "npm:1.29.0"
+    "@rollup/plugin-commonjs": "npm:^29.0.0"
+    "@rollup/plugin-json": "npm:^6.1.0"
+    "@rollup/plugin-node-resolve": "npm:^16.0.3"
+    "@stylistic/eslint-plugin": "npm:^5.4.0"
+    "@toon-format/toon": "npm:^2.2.0"
+    "@types/debug": "npm:^4.1.12"
+    "@types/filesystem": "npm:^0.0.36"
+    "@types/node": "npm:^26.0.0"
+    "@types/semver": "npm:^7.7.1"
+    "@types/sinon": "npm:^22.0.0"
+    "@types/yargs": "npm:^17.0.33"
+    "@typescript-eslint/eslint-plugin": "npm:^8.43.0"
+    "@typescript-eslint/parser": "npm:^8.43.0"
+    "@wdmcp/server": "workspace:^"
+    chrome-devtools-frontend: "npm:1.0.1652307"
+    core-js: "npm:3.49.0"
+    debug: "npm:4.4.3"
+    eslint: "npm:^9.35.0"
+    eslint-import-resolver-typescript: "npm:^4.4.4"
+    eslint-plugin-import: "npm:^2.32.0"
+    globals: "npm:^17.0.0"
+    lighthouse: "npm:13.4.0"
+    prettier: "npm:^3.6.2"
+    puppeteer: "npm:25.3.0"
+    rollup: "npm:4.62.2"
+    rollup-plugin-cleanup: "npm:^3.2.1"
+    rollup-plugin-license: "npm:^3.6.0"
+    semver: "npm:^7.7.4"
+    sinon: "npm:^22.0.0"
+    typescript: "npm:^6.0.2"
+    typescript-eslint: "npm:^8.43.0"
+    yargs: "npm:18.0.0"
+  peerDependencies:
+    "@blackwell-systems/gcf": ^2.2.2
+    "@toon-format/toon": ^2.2.0
+  peerDependenciesMeta:
+    "@blackwell-systems/gcf":
+      optional: true
+    "@toon-format/toon":
+      optional: true
+  bin:
+    webview-devtools: ./build/src/bin/chrome-devtools.js
+    webview-devtools-mcp: ./build/src/bin/chrome-devtools-mcp.js
+  languageName: unknown
+  linkType: soft
 
 "when-exit@npm:^2.1.4":
   version: 2.1.5
