@@ -37,7 +37,7 @@ index 30677ed..c0b3b34 100644
  
  const y = yargs(hideBin(process.argv))
 diff --git a/src/browser.ts b/src/browser.ts
-index 6b077ad..96bff07 100644
+index 86a8799..c4734bc 100644
 --- a/src/browser.ts
 +++ b/src/browser.ts
 @@ -9,6 +9,7 @@ import fs from 'node:fs';
@@ -45,13 +45,13 @@ index 6b077ad..96bff07 100644
  import path from 'node:path';
  
 +import type {parseArguments} from './bin/chrome-devtools-mcp-cli-options.js';
- import {logger} from './logger.js';
  import type {
    Browser,
+   ChromeReleaseChannel,
 @@ -17,6 +18,7 @@ import type {
-   Target,
  } from './third_party/index.js';
  import {puppeteer} from './third_party/index.js';
+ import {logger} from './utils/logger.js';
 +import {WebviewDevtoolsMcpContext} from './wdmcp.js';
  
  let browser: Browser | undefined;
@@ -170,7 +170,7 @@ index 6b077ad..96bff07 100644
  }
  
 diff --git a/src/index.ts b/src/index.ts
-index 9dce8ee..f754b82 100644
+index 706ebf2..339765d 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -7,8 +7,7 @@
@@ -180,9 +180,9 @@ index 9dce8ee..f754b82 100644
 -import type {Channel} from './browser.js';
 -import {ensureBrowserConnected, ensureBrowserLaunched} from './browser.js';
 +import {ensureBrowserConnected} from './browser.js';
- import {loadIssueDescriptions} from './issue-descriptions.js';
- import {logger} from './logger.js';
+ import {loadIssueDescriptions} from './devtools/issueDescriptions.js';
  import {McpContext} from './McpContext.js';
+ import {ClearcutLogger} from './telemetry/ClearcutLogger.js';
 @@ -30,7 +29,7 @@ export {buildFlag} from './ToolHandler.js';
  
  export async function createMcpServer(

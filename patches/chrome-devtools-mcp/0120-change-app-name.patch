@@ -8,7 +8,7 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/daemon/utils.ts b/src/daemon/utils.ts
-index d5f7ee4..4b911a6 100644
+index 7f70343..cd82a81 100644
 --- a/src/daemon/utils.ts
 +++ b/src/daemon/utils.ts
 @@ -20,8 +20,8 @@ export const INDEX_SCRIPT_PATH = path.join(

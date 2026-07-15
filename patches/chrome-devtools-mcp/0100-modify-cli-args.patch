@@ -13,7 +13,7 @@ From: Il Harper <hi@ilharper.com>
  6 files changed, 21 insertions(+), 232 deletions(-)
 
 diff --git a/src/McpContext.ts b/src/McpContext.ts
-index 29508b0..e133b1e 100644
+index 1092525..1cc79a3 100644
 --- a/src/McpContext.ts
 +++ b/src/McpContext.ts
 @@ -45,8 +45,6 @@ interface McpContextOptions {
@@ -25,7 +25,7 @@ index 29508b0..e133b1e 100644
    // The allow list of URL patterns to allow loading resources.
    allowList?: string[];
    // The block list of URL patterns to block loading resources.
-@@ -337,10 +335,6 @@ export class McpContext implements Context {
+@@ -351,10 +349,6 @@ export class McpContext implements Context {
      this.#screenRecorderData = data;
    }
  
@@ -320,12 +320,12 @@ index c943b7c..21f44de 100644
          '$0 --no-usage-statistics',
          'Do not send usage statistics https://github.com/ChromeDevTools/chrome-devtools-mcp#usage-statistics.',
 diff --git a/src/index.ts b/src/index.ts
-index 9aeb30c..9dce8ee 100644
+index 1e8b086..706ebf2 100644
 --- a/src/index.ts
 +++ b/src/index.ts
-@@ -14,7 +14,6 @@ import {logger} from './logger.js';
+@@ -12,7 +12,6 @@ import {ensureBrowserConnected, ensureBrowserLaunched} from './browser.js';
+ import {loadIssueDescriptions} from './devtools/issueDescriptions.js';
  import {McpContext} from './McpContext.js';
- import {Mutex} from './Mutex.js';
  import {ClearcutLogger} from './telemetry/ClearcutLogger.js';
 -import {FilePersistence} from './telemetry/persistence.js';
  import {
@@ -357,7 +357,7 @@ index 9aeb30c..9dce8ee 100644
          allowList: allowlist,
          blocklist: blocklist,
          allowUnrestrictedPaths: serverArgs.allowUnrestrictedPaths,
-@@ -203,18 +190,4 @@ export const logDisclaimers = (args: ReturnType<typeof parseArguments>) => {
+@@ -205,18 +192,4 @@ export const logDisclaimers = (args: ReturnType<typeof parseArguments>) => {
  debug, and modify any data in the browser or DevTools.
  Avoid sharing sensitive or personal information that you do not want to share with MCP clients.`,
    );
@@ -377,7 +377,7 @@ index 9aeb30c..9dce8ee 100644
 -  }
  };
 diff --git a/src/tools/ToolDefinition.ts b/src/tools/ToolDefinition.ts
-index 2625ace..766ffd0 100644
+index 06e7c36..ba05da6 100644
 --- a/src/tools/ToolDefinition.ts
 +++ b/src/tools/ToolDefinition.ts
 @@ -196,7 +196,6 @@ export type Context = Readonly<{
@@ -389,7 +389,7 @@ index 2625ace..766ffd0 100644
    storeTraceRecording(result: TraceResult): void;
    getPageById(pageId: number): ContextPage;
 diff --git a/src/tools/performance.ts b/src/tools/performance.ts
-index a41d20b..4d90b60 100644
+index 9896967..5f6a17a 100644
 --- a/src/tools/performance.ts
 +++ b/src/tools/performance.ts
 @@ -217,9 +217,6 @@ async function stopTracingAndAppendOutput(
@@ -403,10 +403,10 @@ index a41d20b..4d90b60 100644
        response.attachTraceSummary(result);
      } else {
 diff --git a/tests/utils.ts b/tests/utils.ts
-index 9fd4112..dd69d98 100644
+index f2f12ee..0ff9c19 100644
 --- a/tests/utils.ts
 +++ b/tests/utils.ts
-@@ -136,7 +136,6 @@ export async function withMcpContext(
+@@ -137,7 +137,6 @@ export async function withMcpContext(
        logger('test'),
        {
          experimentalDevToolsDebugging: false,

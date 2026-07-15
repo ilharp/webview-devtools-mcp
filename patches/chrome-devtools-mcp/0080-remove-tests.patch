@@ -24,7 +24,7 @@ From: Il Harper <hi@ilharper.com>
  delete mode 100644 tests/tools/performance.test.ts
 
 diff --git a/tests/McpResponse.test.ts b/tests/McpResponse.test.ts
-index a0ede6e..809cb5d 100644
+index 930777f..8b24a5e 100644
 --- a/tests/McpResponse.test.ts
 +++ b/tests/McpResponse.test.ts
 @@ -21,10 +21,8 @@ import type {
@@ -38,7 +38,7 @@ index a0ede6e..809cb5d 100644
    selectPage,
  } from '../src/tools/pages.js';
  import type {InsightName} from '../src/trace-processing/parse.js';
-@@ -1175,13 +1173,6 @@ describe('third-party developer tools', () => {
+@@ -1201,13 +1199,6 @@ describe('third-party developer tools', () => {
      }, 'select_page');
    });
  
@@ -52,7 +52,7 @@ index a0ede6e..809cb5d 100644
    it('includes third-party developer tools in navigate_page response', async () => {
      await testIncludesThirdPartyDeveloperTools(async (response, context) => {
        await navigatePage().handler(
-@@ -1194,21 +1185,6 @@ describe('third-party developer tools', () => {
+@@ -1220,21 +1211,6 @@ describe('third-party developer tools', () => {
        );
      }, 'navigate_page');
    });
@@ -409,7 +409,7 @@ index fbc2279..2ef5eb0 100644
 -  });
  });
 diff --git a/tests/tools/console.test.ts b/tests/tools/console.test.ts
-index abdcb95..2149d9f 100644
+index a1fc9bd..8bce11f 100644
 --- a/tests/tools/console.test.ts
 +++ b/tests/tools/console.test.ts
 @@ -5,7 +5,6 @@
@@ -421,7 +421,7 @@ index abdcb95..2149d9f 100644
  
  import type {Dialog} from 'puppeteer-core';
 @@ -14,134 +13,23 @@ import type {ParsedArguments} from '../../src/bin/chrome-devtools-mcp-cli-option
- import {loadIssueDescriptions} from '../../src/issue-descriptions.js';
+ import {loadIssueDescriptions} from '../../src/devtools/issueDescriptions.js';
  import {McpResponse} from '../../src/McpResponse.js';
  import {TextSnapshot} from '../../src/TextSnapshot.js';
 -import type {CdpWebWorker} from '../../src/third_party/index.js';

@@ -4,22 +4,23 @@ From: Il Harper <hi@ilharper.com>
 
 
 ---
- src/McpResponse.ts |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ src/McpResponse.ts |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/McpResponse.ts b/src/McpResponse.ts
-index 5c0e687..45a5df8 100644
+index 90cf23f..1fd63d6 100644
 --- a/src/McpResponse.ts
 +++ b/src/McpResponse.ts
-@@ -42,7 +42,6 @@ import type {
+@@ -42,7 +42,7 @@ import type {
    Extension,
    HTTPRequest,
  } from './third_party/index.js';
--import {handleDialog} from './tools/pages.js';
+-import {handleDialog, listPages} from './tools/pages.js';
++import {listPages} from './tools/pages.js';
  import type {ToolGroups} from './tools/thirdPartyDeveloper.js';
  import type {
    DevToolsData,
-@@ -985,7 +984,7 @@ export class McpResponse implements Response {
+@@ -1001,7 +1001,7 @@ export class McpResponse implements Response {
            : '';
        response.push(`# Open dialog
  ${dialog.type()}: ${dialog.message()}${defaultValueIfNeeded}.
