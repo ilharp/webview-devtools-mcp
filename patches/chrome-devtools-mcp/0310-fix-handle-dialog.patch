@@ -8,18 +8,18 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/src/McpResponse.ts b/src/McpResponse.ts
-index c80ea98..eeda6ff 100644
+index 5c0e687..45a5df8 100644
 --- a/src/McpResponse.ts
 +++ b/src/McpResponse.ts
-@@ -41,7 +41,6 @@ import type {
-   JSONSchema7Definition,
+@@ -42,7 +42,6 @@ import type {
    Extension,
+   HTTPRequest,
  } from './third_party/index.js';
 -import {handleDialog} from './tools/pages.js';
  import type {ToolGroups} from './tools/thirdPartyDeveloper.js';
  import type {
    DevToolsData,
-@@ -982,7 +981,7 @@ export class McpResponse implements Response {
+@@ -985,7 +984,7 @@ export class McpResponse implements Response {
            : '';
        response.push(`# Open dialog
  ${dialog.type()}: ${dialog.message()}${defaultValueIfNeeded}.

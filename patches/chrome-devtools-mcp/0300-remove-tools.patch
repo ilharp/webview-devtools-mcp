@@ -10,7 +10,7 @@ From: Il Harper <hi@ilharper.com>
  3 files changed, 2 insertions(+), 274 deletions(-)
 
 diff --git a/src/tools/input.ts b/src/tools/input.ts
-index 2485856..6a61944 100644
+index 53562ea..a644f70 100644
 --- a/src/tools/input.ts
 +++ b/src/tools/input.ts
 @@ -368,43 +368,6 @@ export const typeText = definePageTool({
@@ -79,7 +79,7 @@ index 2485856..6a61944 100644
 -  },
 -  blockedByDialog: true,
 -  verifyFilesSchema: ['filePath'],
--  handler: async (request, response, _context) => {
+-  handler: async (request, response) => {
 -    const {uid, filePath} = request.params;
 -    const handle = (await request.page.getElementByUid(
 -      uid,
@@ -117,7 +117,7 @@ index 2485856..6a61944 100644
    name: 'press_key',
    description: `Press a key or key combination. Use this when other input methods like fill() cannot be used (e.g., keyboard shortcuts, navigation keys, or special key combinations).`,
 diff --git a/src/tools/pages.ts b/src/tools/pages.ts
-index 5e7eca6..4e746be 100644
+index e0478eb..4e746be 100644
 --- a/src/tools/pages.ts
 +++ b/src/tools/pages.ts
 @@ -10,7 +10,6 @@ import {zod} from '../third_party/index.js';
@@ -232,7 +232,7 @@ index 5e7eca6..4e746be 100644
 -  },
 -  blockedByDialog: false,
 -  verifyFilesSchema: [],
--  handler: async (request, response, _context) => {
+-  handler: async (request, response) => {
 -    const page = request.page;
 -
 -    try {
@@ -278,7 +278,7 @@ index 5e7eca6..4e746be 100644
 -  },
 -  blockedByDialog: false,
 -  verifyFilesSchema: [],
--  handler: async (request, response, _context) => {
+-  handler: async (request, response) => {
 -    const page = request.page;
 -    const dialog = page.getDialog();
 -    if (!dialog) {

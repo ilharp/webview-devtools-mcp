@@ -24,7 +24,7 @@ From: Il Harper <hi@ilharper.com>
  delete mode 100644 tests/tools/performance.test.ts
 
 diff --git a/tests/McpResponse.test.ts b/tests/McpResponse.test.ts
-index 0e54337..585fa06 100644
+index a0ede6e..809cb5d 100644
 --- a/tests/McpResponse.test.ts
 +++ b/tests/McpResponse.test.ts
 @@ -21,10 +21,8 @@ import type {
@@ -38,7 +38,7 @@ index 0e54337..585fa06 100644
    selectPage,
  } from '../src/tools/pages.js';
  import type {InsightName} from '../src/trace-processing/parse.js';
-@@ -1173,13 +1171,6 @@ describe('third-party developer tools', () => {
+@@ -1175,13 +1173,6 @@ describe('third-party developer tools', () => {
      }, 'select_page');
    });
  
@@ -52,7 +52,7 @@ index 0e54337..585fa06 100644
    it('includes third-party developer tools in navigate_page response', async () => {
      await testIncludesThirdPartyDeveloperTools(async (response, context) => {
        await navigatePage().handler(
-@@ -1192,21 +1183,6 @@ describe('third-party developer tools', () => {
+@@ -1194,21 +1185,6 @@ describe('third-party developer tools', () => {
        );
      }, 'navigate_page');
    });
@@ -409,7 +409,7 @@ index fbc2279..2ef5eb0 100644
 -  });
  });
 diff --git a/tests/tools/console.test.ts b/tests/tools/console.test.ts
-index 1b49d07..7e4be4e 100644
+index abdcb95..2149d9f 100644
 --- a/tests/tools/console.test.ts
 +++ b/tests/tools/console.test.ts
 @@ -5,7 +5,6 @@
@@ -557,7 +557,7 @@ index 1b49d07..7e4be4e 100644
        await withMcpContext(async (response, context) => {
 diff --git a/tests/tools/emulation.test.ts b/tests/tools/emulation.test.ts
 deleted file mode 100644
-index 6628c33..0000000
+index cba1fb2..0000000
 --- a/tests/tools/emulation.test.ts
 +++ /dev/null
 @@ -1,880 +0,0 @@
@@ -775,7 +775,7 @@ index 6628c33..0000000
 -    it('applies cpu throttling to secondary session', async () => {
 -      await withMcpContext(async (response, context) => {
 -        const mcpPage = context.getSelectedMcpPage();
--        const universe = context.getDevToolsUniverse(mcpPage);
+-        const universe = mcpPage.devtoolsUniverse;
 -        assert.ok(universe);
 -
 -        const sendSpy = mock.method(universe.session, 'send');
@@ -804,7 +804,7 @@ index 6628c33..0000000
 -
 -    it('disables cpu throttling', async () => {
 -      await withMcpContext(async (response, context) => {
--        await context.emulate({
+-        await context.getSelectedMcpPage().emulate({
 -          cpuThrottlingRate: 4,
 -        });
 -        await emulate.handler(
@@ -1672,7 +1672,7 @@ index 1158375..0000000
 -  });
 -});
 diff --git a/tests/tools/input.test.ts b/tests/tools/input.test.ts
-index 0e7f7e3..bb990e3 100644
+index bac71cc..72aeec8 100644
 --- a/tests/tools/input.test.ts
 +++ b/tests/tools/input.test.ts
 @@ -5,8 +5,6 @@
@@ -1683,8 +1683,8 @@ index 0e7f7e3..bb990e3 100644
 -import path from 'node:path';
  import {describe, it} from 'node:test';
  
- import type {ParsedArguments} from '../../src/bin/chrome-devtools-mcp-cli-options.js';
-@@ -16,9 +14,7 @@ import {
+ import sinon from 'sinon';
+@@ -18,9 +16,7 @@ import {
    click,
    hover,
    fill,
@@ -1694,7 +1694,7 @@ index 0e7f7e3..bb990e3 100644
    pressKey,
    clickAt,
    typeText,
-@@ -998,63 +994,6 @@ describe('input', () => {
+@@ -1000,63 +996,6 @@ describe('input', () => {
      });
    });
  
@@ -1758,7 +1758,7 @@ index 0e7f7e3..bb990e3 100644
    describe('fill form', () => {
      it('successfully fills out the form', async () => {
        await withMcpContext(async (response, context) => {
-@@ -1170,132 +1109,6 @@ describe('input', () => {
+@@ -1172,132 +1111,6 @@ describe('input', () => {
      });
    });
  
@@ -1893,7 +1893,7 @@ index 0e7f7e3..bb990e3 100644
        assert.deepStrictEqual(parseKey('Shift+A'), ['A', 'Shift']);
 diff --git a/tests/tools/lighthouse.test.ts b/tests/tools/lighthouse.test.ts
 deleted file mode 100644
-index d01d382..0000000
+index 305ba63..0000000
 --- a/tests/tools/lighthouse.test.ts
 +++ /dev/null
 @@ -1,189 +0,0 @@
@@ -1957,7 +1957,7 @@ index d01d382..0000000
 -      await withMcpContext(async (response, context) => {
 -        const page = context.getSelectedMcpPage().pptrPage;
 -        await page.goto(server.getRoute('/test-mobile'));
--        await context.emulate({
+-        await context.getSelectedMcpPage().emulate({
 -          viewport: {
 -            width: 400,
 -            height: 400,
@@ -2713,7 +2713,7 @@ index 639f512..0000000
 -  });
 -});
 diff --git a/tests/tools/pages.test.ts b/tests/tools/pages.test.ts
-index 5fc54b2..9950014 100644
+index f17ff61..22750f8 100644
 --- a/tests/tools/pages.test.ts
 +++ b/tests/tools/pages.test.ts
 @@ -14,12 +14,8 @@ import sinon from 'sinon';
@@ -3452,7 +3452,7 @@ index 5fc54b2..9950014 100644
      it('returns the tab id', async () => {
 diff --git a/tests/tools/performance.test.ts b/tests/tools/performance.test.ts
 deleted file mode 100644
-index 71e6a8c..0000000
+index 2de85a5..0000000
 --- a/tests/tools/performance.test.ts
 +++ /dev/null
 @@ -1,573 +0,0 @@
@@ -3907,7 +3907,7 @@ index 71e6a8c..0000000
 -        sinon.stub(selectedPage.tracing, 'stop').resolves(modifiedData);
 -
 -        // Emulate mobile
--        await context.emulate({
+-        await context.getSelectedMcpPage().emulate({
 -          viewport: {
 -            width: 375,
 -            height: 667,

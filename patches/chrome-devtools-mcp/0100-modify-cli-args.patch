@@ -13,10 +13,10 @@ From: Il Harper <hi@ilharper.com>
  6 files changed, 21 insertions(+), 232 deletions(-)
 
 diff --git a/src/McpContext.ts b/src/McpContext.ts
-index 592e849..88c5601 100644
+index 29508b0..e133b1e 100644
 --- a/src/McpContext.ts
 +++ b/src/McpContext.ts
-@@ -63,8 +63,6 @@ interface McpContextOptions {
+@@ -45,8 +45,6 @@ interface McpContextOptions {
    experimentalDevToolsDebugging: boolean;
    // Whether all page-like targets are exposed as pages.
    experimentalIncludeAllPages?: boolean;
@@ -25,7 +25,7 @@ index 592e849..88c5601 100644
    // The allow list of URL patterns to allow loading resources.
    allowList?: string[];
    // The block list of URL patterns to block loading resources.
-@@ -536,10 +534,6 @@ export class McpContext implements Context {
+@@ -337,10 +335,6 @@ export class McpContext implements Context {
      this.#screenRecorderData = data;
    }
  
@@ -33,9 +33,9 @@ index 592e849..88c5601 100644
 -    return this.#options.performanceCrux;
 -  }
 -
-   getSelectedMcpPage(): McpPage {
-     const page = this.#selectedPage;
-     if (!page) {
+   getPages(): McpPage[] {
+     return Array.from(this.#mcpPages.values());
+   }
 diff --git a/src/bin/chrome-devtools-mcp-cli-options.ts b/src/bin/chrome-devtools-mcp-cli-options.ts
 index c943b7c..21f44de 100644
 --- a/src/bin/chrome-devtools-mcp-cli-options.ts
@@ -377,7 +377,7 @@ index 9aeb30c..9dce8ee 100644
 -  }
  };
 diff --git a/src/tools/ToolDefinition.ts b/src/tools/ToolDefinition.ts
-index c164485..7129a49 100644
+index 2625ace..766ffd0 100644
 --- a/src/tools/ToolDefinition.ts
 +++ b/src/tools/ToolDefinition.ts
 @@ -196,7 +196,6 @@ export type Context = Readonly<{
