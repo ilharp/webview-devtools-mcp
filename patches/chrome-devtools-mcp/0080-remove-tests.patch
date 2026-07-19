@@ -24,7 +24,7 @@ From: Il Harper <hi@ilharper.com>
  delete mode 100644 tests/tools/performance.test.ts
 
 diff --git a/tests/McpResponse.test.ts b/tests/McpResponse.test.ts
-index 930777f..8b24a5e 100644
+index b5b6a23..80de420 100644
 --- a/tests/McpResponse.test.ts
 +++ b/tests/McpResponse.test.ts
 @@ -21,10 +21,8 @@ import type {
@@ -38,7 +38,7 @@ index 930777f..8b24a5e 100644
    selectPage,
  } from '../src/tools/pages.js';
  import type {InsightName} from '../src/trace-processing/parse.js';
-@@ -1201,13 +1199,6 @@ describe('third-party developer tools', () => {
+@@ -1218,13 +1216,6 @@ describe('third-party developer tools', () => {
      }, 'select_page');
    });
  
@@ -52,7 +52,7 @@ index 930777f..8b24a5e 100644
    it('includes third-party developer tools in navigate_page response', async () => {
      await testIncludesThirdPartyDeveloperTools(async (response, context) => {
        await navigatePage().handler(
-@@ -1220,21 +1211,6 @@ describe('third-party developer tools', () => {
+@@ -1237,21 +1228,6 @@ describe('third-party developer tools', () => {
        );
      }, 'navigate_page');
    });
