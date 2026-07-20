@@ -8,7 +8,7 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/package.json b/package.json
-index ca86105..0b54fe5 100644
+index f2a50fe..de0096d 100644
 --- a/package.json
 +++ b/package.json
 @@ -14,7 +14,7 @@

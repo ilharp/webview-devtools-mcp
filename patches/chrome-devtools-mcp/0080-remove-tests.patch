@@ -409,7 +409,7 @@ index fbc2279..2ef5eb0 100644
 -  });
  });
 diff --git a/tests/tools/console.test.ts b/tests/tools/console.test.ts
-index a1fc9bd..8bce11f 100644
+index 3a3ee96..6304cba 100644
 --- a/tests/tools/console.test.ts
 +++ b/tests/tools/console.test.ts
 @@ -5,7 +5,6 @@
