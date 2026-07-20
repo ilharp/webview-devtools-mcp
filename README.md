@@ -14,9 +14,9 @@ Unlike browser-launching MCP servers, this server does **not** open a browser ta
 
 ## Screenshots
 
-| Lark Web App                            |
-| --------------------------------------- |
-| ![Lark Web App](./docs/assets/lark.gif) |
+| iOS Safari                                  | macOS Safari                                  | Lark Web App                            |
+| ------------------------------------------- | --------------------------------------------- | --------------------------------------- |
+| ![iOS Safari](./docs/assets/ios_safari.gif) | ![macOS Safari](./docs/assets/mac_safari.gif) | ![Lark Web App](./docs/assets/lark.gif) |
 
 ## How it works
 
