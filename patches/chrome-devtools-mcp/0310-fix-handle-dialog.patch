@@ -8,10 +8,10 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/McpResponse.ts b/src/McpResponse.ts
-index 17d65d3..7aba30f 100644
+index 6fc9d65..baef3ea 100644
 --- a/src/McpResponse.ts
 +++ b/src/McpResponse.ts
-@@ -42,7 +42,7 @@ import type {
+@@ -36,7 +36,7 @@ import type {
    Extension,
    HTTPRequest,
  } from './third_party/index.js';
@@ -20,7 +20,7 @@ index 17d65d3..7aba30f 100644
  import type {ToolGroups} from './tools/thirdPartyDeveloper.js';
  import type {
    DevToolsData,
-@@ -1001,7 +1001,7 @@ export class McpResponse implements Response {
+@@ -846,7 +846,7 @@ export class McpResponse implements Response {
            : '';
        response.push(`# Open dialog
  ${dialog.type()}: ${dialog.message()}${defaultValueIfNeeded}.

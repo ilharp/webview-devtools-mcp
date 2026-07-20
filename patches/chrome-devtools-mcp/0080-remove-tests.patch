@@ -24,12 +24,12 @@ From: Il Harper <hi@ilharper.com>
  delete mode 100644 tests/tools/performance.test.ts
 
 diff --git a/tests/McpResponse.test.ts b/tests/McpResponse.test.ts
-index b5b6a23..80de420 100644
+index af28e18..c835ffd 100644
 --- a/tests/McpResponse.test.ts
 +++ b/tests/McpResponse.test.ts
-@@ -21,10 +21,8 @@ import type {
-   JSONSchema7Definition,
- } from '../src/third_party/index.js';
+@@ -17,10 +17,8 @@ import type {McpContext} from '../src/McpContext.js';
+ import type {McpResponse} from '../src/McpResponse.js';
+ import type {Extension} from '../src/third_party/index.js';
  import {
 -  closePage,
    listPages,
@@ -38,7 +38,7 @@ index b5b6a23..80de420 100644
    selectPage,
  } from '../src/tools/pages.js';
  import type {InsightName} from '../src/trace-processing/parse.js';
-@@ -1218,13 +1216,6 @@ describe('third-party developer tools', () => {
+@@ -1214,13 +1212,6 @@ describe('third-party developer tools', () => {
      }, 'select_page');
    });
  
@@ -52,7 +52,7 @@ index b5b6a23..80de420 100644
    it('includes third-party developer tools in navigate_page response', async () => {
      await testIncludesThirdPartyDeveloperTools(async (response, context) => {
        await navigatePage().handler(
-@@ -1237,21 +1228,6 @@ describe('third-party developer tools', () => {
+@@ -1233,21 +1224,6 @@ describe('third-party developer tools', () => {
        );
      }, 'navigate_page');
    });
@@ -73,7 +73,7 @@ index b5b6a23..80de420 100644
 -  });
  });
  
- describe('replaceHtmlElementsWithUids', () => {
+ describe('webmcp', () => {
 diff --git a/tests/browser.test.ts b/tests/browser.test.ts
 index 3c4ed59..6e331c6 100644
 --- a/tests/browser.test.ts
