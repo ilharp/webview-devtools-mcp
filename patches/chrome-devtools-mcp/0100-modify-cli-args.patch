@@ -13,7 +13,7 @@ From: Il Harper <hi@ilharper.com>
  6 files changed, 21 insertions(+), 232 deletions(-)
 
 diff --git a/src/McpContext.ts b/src/McpContext.ts
-index 00331a9..2f49b3e 100644
+index b5834cb..5973260 100644
 --- a/src/McpContext.ts
 +++ b/src/McpContext.ts
 @@ -45,8 +45,6 @@ interface McpContextOptions {
@@ -377,10 +377,10 @@ index 1e8b086..706ebf2 100644
 -  }
  };
 diff --git a/src/tools/ToolDefinition.ts b/src/tools/ToolDefinition.ts
-index ed22237..c77e934 100644
+index 841accd..77c1049 100644
 --- a/src/tools/ToolDefinition.ts
 +++ b/src/tools/ToolDefinition.ts
-@@ -197,7 +197,6 @@ export type Context = Readonly<{
+@@ -200,7 +200,6 @@ export type Context = Readonly<{
    ): Promise<`${string}${Extension}`>;
    isRunningPerformanceTrace(): boolean;
    setIsRunningPerformanceTrace(x: boolean): void;
