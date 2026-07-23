@@ -8,7 +8,7 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 15 insertions(+), 11 deletions(-)
 
 diff --git a/package.json b/package.json
-index f010008..f2a50fe 100644
+index f385a9b..67f9929 100644
 --- a/package.json
 +++ b/package.json
 @@ -1,11 +1,11 @@
@@ -28,7 +28,7 @@ index f010008..f2a50fe 100644
    },
    "main": "./build/src/index.js",
    "scripts": {
-@@ -34,19 +34,23 @@
+@@ -36,19 +36,23 @@
    },
    "files": [
      "build/src",

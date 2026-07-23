@@ -13,7 +13,7 @@ From: Il Harper <hi@ilharper.com>
  6 files changed, 21 insertions(+), 232 deletions(-)
 
 diff --git a/src/McpContext.ts b/src/McpContext.ts
-index b5834cb..5973260 100644
+index 2601883..0f86e71 100644
 --- a/src/McpContext.ts
 +++ b/src/McpContext.ts
 @@ -45,8 +45,6 @@ interface McpContextOptions {
@@ -377,7 +377,7 @@ index 1e8b086..706ebf2 100644
 -  }
  };
 diff --git a/src/tools/ToolDefinition.ts b/src/tools/ToolDefinition.ts
-index 841accd..77c1049 100644
+index 7689e5a..d95a739 100644
 --- a/src/tools/ToolDefinition.ts
 +++ b/src/tools/ToolDefinition.ts
 @@ -200,7 +200,6 @@ export type Context = Readonly<{

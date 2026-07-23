@@ -12,11 +12,11 @@ From: Il Harper <hi@ilharper.com>
  tests/tools/extensions.test.ts  |  224 ----------
  tests/tools/input.test.ts       |  187 --------
  tests/tools/lighthouse.test.ts  |  189 --------
- tests/tools/memory.test.ts      |  648 -----------------------------
+ tests/tools/memory.test.ts      |  705 -------------------------------
  tests/tools/pages.test.ts       |  704 -------------------------------
  tests/tools/performance.test.ts |  573 -------------------------
  tests/tools/script.test.ts      |   61 ---
- 12 files changed, 1 insertion(+), 3903 deletions(-)
+ 12 files changed, 1 insertion(+), 3960 deletions(-)
  delete mode 100644 tests/tools/emulation.test.ts
  delete mode 100644 tests/tools/extensions.test.ts
  delete mode 100644 tests/tools/lighthouse.test.ts
@@ -2088,10 +2088,10 @@ index 305ba63..0000000
 -});
 diff --git a/tests/tools/memory.test.ts b/tests/tools/memory.test.ts
 deleted file mode 100644
-index 300b771..0000000
+index 23ac1da..0000000
 --- a/tests/tools/memory.test.ts
 +++ /dev/null
-@@ -1,648 +0,0 @@
+@@ -1,705 +0,0 @@
 -/**
 - * @license
 - * Copyright 2026 Google LLC
@@ -2210,6 +2210,63 @@ index 300b771..0000000
 -
 -        await getHeapSnapshotDetails.handler(
 -          {params: {filePath, filterName: 'objectsRetainedByContexts'}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotDetails.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-
+-    it('with sharedNativeContext filterName', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotDetails.handler(
+-          {params: {filePath, filterName: 'sharedNativeContext'}},
+-          response,
+-          context,
+-        );
+-
+-        const responseData = await response.handle(
+-          getHeapSnapshotDetails.name,
+-          context,
+-        );
+-        const output = responseData.content
+-          .map(c => (c.type === 'text' ? c.text : ''))
+-          .join('\n');
+-
+-        t.assert.snapshot(output);
+-      });
+-    });
+-
+-    it('with attributedToSpecificNativeContext filterName and objectId', async t => {
+-      await withMcpContext(async (response, context) => {
+-        const filePath = join(
+-          process.cwd(),
+-          'tests/fixtures/example.heapsnapshot',
+-        );
+-
+-        await getHeapSnapshotDetails.handler(
+-          {
+-            params: {
+-              filePath,
+-              filterName: 'attributedToSpecificNativeContext',
+-              objectId: 7249,
+-              pageSize: 10,
+-            },
+-          },
 -          response,
 -          context,
 -        );
