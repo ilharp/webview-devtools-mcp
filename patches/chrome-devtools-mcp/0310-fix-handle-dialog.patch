@@ -8,7 +8,7 @@ From: Il Harper <hi@ilharper.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/McpResponse.ts b/src/McpResponse.ts
-index b403ea4..22414dc 100644
+index 27e1c84..76ae30e 100644
 --- a/src/McpResponse.ts
 +++ b/src/McpResponse.ts
 @@ -36,7 +36,7 @@ import type {
@@ -20,7 +20,7 @@ index b403ea4..22414dc 100644
  import type {ToolGroups} from './tools/thirdPartyDeveloper.js';
  import type {
    DevToolsData,
-@@ -864,7 +864,7 @@ export class McpResponse implements Response {
+@@ -892,7 +892,7 @@ export class McpResponse implements Response {
            : '';
        response.push(`# Open dialog
  ${dialog.type()}: ${dialog.message()}${defaultValueIfNeeded}.

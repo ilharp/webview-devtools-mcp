@@ -12,11 +12,11 @@ From: Il Harper <hi@ilharper.com>
  tests/tools/extensions.test.ts  |  224 ----------
  tests/tools/input.test.ts       |  187 --------
  tests/tools/lighthouse.test.ts  |  189 --------
- tests/tools/memory.test.ts      |  705 -------------------------------
+ tests/tools/memory.test.ts      |  651 -----------------------------
  tests/tools/pages.test.ts       |  704 -------------------------------
  tests/tools/performance.test.ts |  573 -------------------------
  tests/tools/script.test.ts      |   61 ---
- 12 files changed, 1 insertion(+), 3960 deletions(-)
+ 12 files changed, 1 insertion(+), 3906 deletions(-)
  delete mode 100644 tests/tools/emulation.test.ts
  delete mode 100644 tests/tools/extensions.test.ts
  delete mode 100644 tests/tools/lighthouse.test.ts
@@ -24,7 +24,7 @@ From: Il Harper <hi@ilharper.com>
  delete mode 100644 tests/tools/performance.test.ts
 
 diff --git a/tests/McpResponse.test.ts b/tests/McpResponse.test.ts
-index af28e18..c835ffd 100644
+index ee01087..2252f39 100644
 --- a/tests/McpResponse.test.ts
 +++ b/tests/McpResponse.test.ts
 @@ -17,10 +17,8 @@ import type {McpContext} from '../src/McpContext.js';
@@ -38,7 +38,7 @@ index af28e18..c835ffd 100644
    selectPage,
  } from '../src/tools/pages.js';
  import type {InsightName} from '../src/trace-processing/parse.js';
-@@ -1214,13 +1212,6 @@ describe('third-party developer tools', () => {
+@@ -1097,13 +1095,6 @@ describe('third-party developer tools', () => {
      }, 'select_page');
    });
  
@@ -52,7 +52,7 @@ index af28e18..c835ffd 100644
    it('includes third-party developer tools in navigate_page response', async () => {
      await testIncludesThirdPartyDeveloperTools(async (response, context) => {
        await navigatePage().handler(
-@@ -1233,21 +1224,6 @@ describe('third-party developer tools', () => {
+@@ -1116,21 +1107,6 @@ describe('third-party developer tools', () => {
        );
      }, 'navigate_page');
    });
@@ -409,7 +409,7 @@ index fbc2279..2ef5eb0 100644
 -  });
  });
 diff --git a/tests/tools/console.test.ts b/tests/tools/console.test.ts
-index 3a3ee96..6304cba 100644
+index f8ed73a..bcc8247 100644
 --- a/tests/tools/console.test.ts
 +++ b/tests/tools/console.test.ts
 @@ -5,7 +5,6 @@
@@ -518,7 +518,7 @@ index 3a3ee96..6304cba 100644
 -          context,
 -        );
 -
--        const formattedResponse = await response2.handle('test', context);
+-        const formattedResponse = await response2.handle(context);
 -        const textContent = getTextContent(formattedResponse.content[0]);
 -
 -        const sanitizedText = textContent.replaceAll(
@@ -1443,7 +1443,7 @@ index cba1fb2..0000000
 -});
 diff --git a/tests/tools/extensions.test.ts b/tests/tools/extensions.test.ts
 deleted file mode 100644
-index 1158375..0000000
+index e98ea49..0000000
 --- a/tests/tools/extensions.test.ts
 +++ /dev/null
 @@ -1,224 +0,0 @@
@@ -1655,7 +1655,7 @@ index 1158375..0000000
 -          context,
 -        );
 -
--        const result = await response.handle('list_console_messages', context);
+-        const result = await response.handle(context);
 -        const consoleOutput = getTextContent(result.content[0]);
 -        assert.ok(
 -          consoleOutput.includes('from content script!'),
@@ -1672,7 +1672,7 @@ index 1158375..0000000
 -  });
 -});
 diff --git a/tests/tools/input.test.ts b/tests/tools/input.test.ts
-index bac71cc..72aeec8 100644
+index eaa8445..325da89 100644
 --- a/tests/tools/input.test.ts
 +++ b/tests/tools/input.test.ts
 @@ -5,8 +5,6 @@
@@ -2088,10 +2088,10 @@ index 305ba63..0000000
 -});
 diff --git a/tests/tools/memory.test.ts b/tests/tools/memory.test.ts
 deleted file mode 100644
-index 23ac1da..0000000
+index 4da915a..0000000
 --- a/tests/tools/memory.test.ts
 +++ /dev/null
-@@ -1,705 +0,0 @@
+@@ -1,651 +0,0 @@
 -/**
 - * @license
 - * Copyright 2026 Google LLC
@@ -2162,10 +2162,7 @@ index 23ac1da..0000000
 -        );
 -
 -        // Call handle to trigger formatting (similar to network tests)
--        const responseData = await response.handle(
--          getHeapSnapshotSummary.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2189,10 +2186,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotDetails.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2214,10 +2208,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotDetails.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2239,10 +2230,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotDetails.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2271,10 +2259,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotDetails.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2300,10 +2285,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotClassNodes.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
@@ -2337,10 +2319,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotClassNodes.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
@@ -2385,10 +2364,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotRetainers.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2412,10 +2388,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotObjectDetails.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2485,10 +2458,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotRetainingPaths.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2510,10 +2480,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotRetainingPaths.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2541,10 +2508,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotEdges.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2566,10 +2530,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotEdges.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2593,10 +2554,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotDominators.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2624,10 +2582,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          compareHeapSnapshots.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2653,10 +2608,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          compareHeapSnapshots.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2688,10 +2640,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          compareHeapSnapshots.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2784,10 +2733,7 @@ index 23ac1da..0000000
 -          context,
 -        );
 -
--        const responseData = await response.handle(
--          getHeapSnapshotDuplicateStrings.name,
--          context,
--        );
+-        const responseData = await response.handle(context);
 -        const output = responseData.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -2798,7 +2744,7 @@ index 23ac1da..0000000
 -  });
 -});
 diff --git a/tests/tools/pages.test.ts b/tests/tools/pages.test.ts
-index f17ff61..22750f8 100644
+index 2dc0112..f94473f 100644
 --- a/tests/tools/pages.test.ts
 +++ b/tests/tools/pages.test.ts
 @@ -14,12 +14,8 @@ import sinon from 'sinon';
@@ -2931,7 +2877,7 @@ index f17ff61..22750f8 100644
 -          response,
 -          context,
 -        );
--        const result = await response.handle('new_page', context);
+-        const result = await response.handle(context);
 -        const pages = (
 -          result.structuredContent as {pages: Array<{isolatedContext?: string}>}
 -        ).pages;
@@ -2992,7 +2938,7 @@ index f17ff61..22750f8 100644
 -          context,
 -        );
 -
--        const result = await response.handle('new_page', context);
+-        const result = await response.handle(context);
 -        t.assert.snapshot(JSON.stringify(result));
 -        await dialog.dismiss();
 -        await evalPromise;
@@ -3095,7 +3041,7 @@ index f17ff61..22750f8 100644
 -
 -        await closePage.handler({params: {pageId: 2}}, response, context);
 -
--        const result = await response.handle('close_page', context);
+-        const result = await response.handle(context);
 -        t.assert.snapshot(JSON.stringify(result));
 -      });
 -    });
@@ -3345,7 +3291,7 @@ index f17ff61..22750f8 100644
 -          context,
 -        );
 -
--        const result = await response.handle('resize_page', context);
+-        const result = await response.handle(context);
 -        t.assert.snapshot(JSON.stringify(result));
 -        await dialog.dismiss();
 -        await evalPromise;
@@ -3537,7 +3483,7 @@ index f17ff61..22750f8 100644
      it('returns the tab id', async () => {
 diff --git a/tests/tools/performance.test.ts b/tests/tools/performance.test.ts
 deleted file mode 100644
-index 2de85a5..0000000
+index 4bcddb5..0000000
 --- a/tests/tools/performance.test.ts
 +++ /dev/null
 @@ -1,573 +0,0 @@
@@ -3959,7 +3905,7 @@ index 2de85a5..0000000
 -          context,
 -        );
 -
--        const result = await response.handle('performance_stop_trace', context);
+-        const result = await response.handle(context);
 -        const fullOutput = result.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');
@@ -4023,7 +3969,7 @@ index 2de85a5..0000000
 -          context,
 -        );
 -
--        const result = await response.handle('performance_stop_trace', context);
+-        const result = await response.handle(context);
 -        const fullOutput = result.content
 -          .map(c => (c.type === 'text' ? c.text : ''))
 -          .join('\n');

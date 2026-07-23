@@ -117,7 +117,7 @@ index 8b32a1c..d3299b4 100644
    name: 'press_key',
    description: `Press a key or key combination. Use this when other input methods like fill() cannot be used (e.g., keyboard shortcuts, navigation keys, or special key combinations).`,
 diff --git a/src/tools/pages.ts b/src/tools/pages.ts
-index dae8aa8..4fcb180 100644
+index 2eb0126..11716e9 100644
 --- a/src/tools/pages.ts
 +++ b/src/tools/pages.ts
 @@ -10,7 +10,6 @@ import {logger} from '../utils/logger.js';
