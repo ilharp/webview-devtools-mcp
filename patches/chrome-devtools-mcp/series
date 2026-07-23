@@ -1,4 +1,4 @@
-# This series applies on Git commit 8432cb97a2a18f48afcb542f27dd88d7e5a11f36
+# This series applies on Git commit 77e1d3f9616d5b32671da0b9ea094f4929c14a9c
 0001-add-install-config.patch
 0003-add-deps.patch
 0010-ignore-license-check.patch
